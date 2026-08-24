@@ -12,7 +12,7 @@ Five galleries guide you from myth to method: the tower legend, the cracks in th
 
 ## Created by
 
-[Victor42](https://victor42.work) & [Vik](https://github.com/agent-vik/about-me)
+[Victor42](https://victor42.work/) & [Agent Vik](https://github.com/agent-vik/about-me)
 
 ## License
 
