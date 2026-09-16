@@ -1,6 +1,6 @@
 # The Drop — 事实核查 Factsheet
 
-最后更新: 2026-08-05
+最后更新: 2026-09-15
 
 ## 1. 维维亚尼与斜塔传说
 
@@ -86,7 +86,7 @@
 
 ### 逻辑链条
 1. **亚里士多德前提**: 重物比轻物落得快。假设 a 比 b 重 → a 先落地
-2. **捆绑**: 现在用绳子把 a 和 b 绑在一起 → a+b 比单独的 a 更重
+2. **合成**：把两块石头连在一起（原文 *congiugnendole amendue insieme*，变成 *una pietra maggiore*）。**没有绳子、没有杆子**；Crew 英译 *tied together* 是翻译加的。连起来之后 a+b 比单独的 a 更重。
 3. **矛盾分叉**:
    - 按"越重越快" → **a+b 比 a 落得更快**（因为更重）
    - 但 b 落得比 a 慢 → b 会"拖着"a 减速 → **a+b 比单独的 a 落得更慢**
@@ -121,8 +121,9 @@
 
 ### 版权状态
 - NASA 工作成果 → **Public Domain**（公共领域）
-- 确认来源: apollo15hub.org 标注 "Rights: Public Domain"
-- 可以**自托管或嵌入**，无需授权
+- 确认来源: NASA Science 资源页可下载 MP4/WebM/MOV；apollo15hub.org 标注 Public Domain
+- ALSJ 实验段约 50 秒；带说话约 1–1.5 分钟
+- 可以**自托管**，署名 NASA；不要用后来配乐/旁白的纪录片剪辑
 
 ## 6. 关键时间线
 

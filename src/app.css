@@ -1,0 +1,61 @@
+:root {
+	--accent: #d4a574;
+	--text: #f4ece3;
+	--text-dim: #c4b8a8;
+	--room-bg: #211a12;
+	--system-pad: 1.25rem;
+}
+
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+}
+
+html,
+body {
+	margin: 0;
+	min-height: 100%;
+	background: var(--room-bg);
+	color: var(--text);
+	font-family:
+		Inter,
+		-apple-system,
+		BlinkMacSystemFont,
+		'PingFang SC',
+		'Hiragino Sans GB',
+		'Microsoft YaHei',
+		sans-serif;
+}
+
+body {
+	transition: background-color 0.8s ease;
+}
+
+h1,
+.serif {
+	font-family: 'Cormorant Garamond', 'Songti SC', 'Noto Serif CJK SC', serif;
+	font-weight: 500;
+}
+
+.mono {
+	font-family: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+a {
+	color: var(--accent);
+	text-decoration: none;
+}
+
+a:hover {
+	text-decoration: underline;
+}
+
+button {
+	font: inherit;
+	color: inherit;
+	background: none;
+	border: 0;
+	padding: 0;
+	cursor: pointer;
+}

@@ -10,6 +10,17 @@ An interactive museum exhibit about Galileo, gravity, and the legend of the Lean
 
 Five galleries guide you from myth to method: the tower legend, the cracks in the story, a thought experiment that broke Aristotle, the inclined plane where gravity was diluted so it could be weighed — and the vacuum where everything finally falls together.
 
+A **playable local draft** exists (`npm run dev` → `http://127.0.0.1:5173/`). Interaction follows `docs/interaction/`. Visual rooms and apparatus plates are in; pathway copy and deploy are not. It is not the finished museum.
+
+## Develop
+
+```sh
+npm install
+npm run dev
+```
+
+English is the default URL (`/`). Chinese lives under `/zh/`.
+
 ## Created by
 
 [Victor42](https://victor42.work/) & [Agent Vik](https://github.com/agent-vik/about-me)
