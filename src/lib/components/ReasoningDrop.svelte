@@ -11,6 +11,11 @@
 	let phase = $state<Phase>('idle');
 	let p = $state<number[]>([0, 0, 0]);
 
+	const labelM = $derived(copy.otherLang === 'en' ? '8 磅 (M)' : '8 lb (M)');
+	const labelL = $derived(copy.otherLang === 'en' ? '1 磅 (m)' : '1 lb (m)');
+	const label9 = $derived(copy.otherLang === 'en' ? '9 磅 (更重·更快?)' : '9 lb (faster?)');
+	const labelDrag = $derived(copy.otherLang === 'en' ? 'M + m (拖慢)' : 'M + m (drag)');
+
 	const times = ARISTOTLE_FALL;
 
 	let start = 0;
@@ -47,34 +52,94 @@
 		phase = 'idle';
 		p = [0, 0, 0];
 	}
+
+	function handleKeydown(e: KeyboardEvent) {
+		if (e.key === ' ' || e.key === 'Enter') {
+			if (phase === 'idle') {
+				e.preventDefault();
+				hold();
+			} else if (phase === 'holding') {
+				e.preventDefault();
+				release();
+			} else if (phase === 'done' && scene < 2) {
+				e.preventDefault();
+				next();
+			}
+		}
+	}
 </script>
 
-<div class="lab">
-	<p class="say serif">
-		{scene === 0 ? copy.reasoning.premise : scene === 1 ? copy.reasoning.drag : copy.reasoning.heavier}
-	</p>
+<svelte:window onkeydown={handleKeydown} />
 
+<div class="lab">
+	<!-- Dialectic Stage Progress Pills -->
+	<div class="stepper mono">
+		<button class="step" class:active={scene === 0} class:passed={scene > 0} onclick={() => { scene = 0; phase = 'idle'; p = [0,0,0]; }}>
+			<span class="step-num">I</span>
+			<span class="step-label">{copy.otherLang === 'en' ? '前提假设' : 'Premise'}</span>
+		</button>
+		<span class="step-arrow">→</span>
+		<button class="step" class:active={scene === 1} class:passed={scene > 1} onclick={() => { scene = 1; phase = 'idle'; p = [0,0,0]; }}>
+			<span class="step-num">II</span>
+			<span class="step-label">{copy.otherLang === 'en' ? '推论：拖慢' : 'Drag'}</span>
+		</button>
+		<span class="step-arrow">→</span>
+		<button class="step" class:active={scene === 2} onclick={() => { scene = 2; phase = 'idle'; p = [0,0,0]; }}>
+			<span class="step-num">III</span>
+			<span class="step-label">{copy.otherLang === 'en' ? '推论：更快' : 'Faster'}</span>
+		</button>
+	</div>
+
+	<!-- Proposition Banner -->
+	<div class="statement-wrap">
+		<p class="say serif">
+			{scene === 0 ? copy.reasoning.premise : scene === 1 ? copy.reasoning.drag : copy.reasoning.heavier}
+		</p>
+	</div>
+
+	<!-- The Thought Stage with Mass Drop Tracks -->
 	<div
 		class="stage"
+		class:holding={phase === 'holding'}
+		class:falling={phase === 'falling'}
+		class:done={phase === 'done'}
 		role="button"
 		tabindex="0"
+		aria-label={phase === 'idle' ? copy.holdHint : copy.release}
 		onpointerdown={hold}
 		onpointerup={release}
-		onkeydown={(e) => {
-			if (e.key === ' ' || e.key === 'Enter') {
-				e.preventDefault();
-				if (phase === 'idle') hold();
-				else if (phase === 'holding') release();
-			}
-		}}
 	>
 		<div class="drop">
 			{#if scene === 0}
-				<div class="col" style:--p={p[0]}><div class="ball heavy"></div></div>
-				<div class="col" style:--p={p[1]}><div class="ball light"></div></div>
+				<!-- Track 1: Heavy -->
+				<div class="col" style:--p={p[0]}>
+					<span class="track-label mono">{labelM}</span>
+					{#if phase === 'holding'}<div class="guide" aria-hidden="true"></div>{/if}
+					<div class="ball heavy">
+						{#if phase === 'idle'}<span class="reticle" aria-hidden="true"></span>{/if}
+					</div>
+				</div>
+				<!-- Track 2: Light -->
+				<div class="col" style:--p={p[1]}>
+					<span class="track-label mono">{labelL}</span>
+					{#if phase === 'holding'}<div class="guide" aria-hidden="true"></div>{/if}
+					<div class="ball light">
+						{#if phase === 'idle'}<span class="reticle" aria-hidden="true"></span>{/if}
+					</div>
+				</div>
 			{:else if scene === 1}
-				<div class="col" style:--p={p[0]}><div class="ball heavy"></div></div>
+				<!-- Track 1: Heavy alone -->
+				<div class="col" style:--p={p[0]}>
+					<span class="track-label mono">{labelM}</span>
+					{#if phase === 'holding'}<div class="guide" aria-hidden="true"></div>{/if}
+					<div class="ball heavy">
+						{#if phase === 'idle'}<span class="reticle" aria-hidden="true"></span>{/if}
+					</div>
+				</div>
+				<!-- Track 2: Tied pair (m drags M) -->
 				<div class="col combo" style:--p={p[1]}>
+					<span class="track-label mono active-label">{labelDrag}</span>
+					{#if phase === 'holding'}<div class="guide" aria-hidden="true"></div>{/if}
 					{#if phase === 'idle' || phase === 'holding'}
 						<span class="arrow up" aria-hidden="true">
 							<svg viewBox="0 0 12 32">
@@ -89,12 +154,28 @@
 							</svg>
 						</span>
 					{/if}
-					<div class="ball light"></div>
-					<div class="ball heavy"></div>
+					<div class="ball light">
+						{#if phase === 'idle'}<span class="reticle" aria-hidden="true"></span>{/if}
+					</div>
+					<div class="combo-cord" aria-hidden="true"></div>
+					<div class="ball heavy">
+						{#if phase === 'idle'}<span class="reticle" aria-hidden="true"></span>{/if}
+					</div>
 				</div>
-				<div class="col" style:--p={p[2]}><div class="ball light"></div></div>
+				<!-- Track 3: Light alone -->
+				<div class="col" style:--p={p[2]}>
+					<span class="track-label mono">{labelL}</span>
+					{#if phase === 'holding'}<div class="guide" aria-hidden="true"></div>{/if}
+					<div class="ball light">
+						{#if phase === 'idle'}<span class="reticle" aria-hidden="true"></span>{/if}
+					</div>
+				</div>
 			{:else}
+				<!-- Scene 2: Reductio ad absurdum -->
+				<!-- Track 1: Bound body 9lb -->
 				<div class="col combo" style:--p={p[0]}>
+					<span class="track-label mono active-label">{label9}</span>
+					{#if phase === 'holding'}<div class="guide" aria-hidden="true"></div>{/if}
 					{#if phase === 'idle' || phase === 'holding'}
 						<span class="arrow merged" aria-hidden="true">
 							<svg viewBox="0 0 16 36">
@@ -105,65 +186,192 @@
 							</svg>
 						</span>
 					{/if}
-					<div class="ball light"></div>
-					<div class="ball heavy"></div>
+					<div class="ball light">
+						{#if phase === 'idle'}<span class="reticle" aria-hidden="true"></span>{/if}
+					</div>
+					<div class="combo-cord" aria-hidden="true"></div>
+					<div class="ball heavy">
+						{#if phase === 'idle'}<span class="reticle" aria-hidden="true"></span>{/if}
+					</div>
 				</div>
-				<div class="col" style:--p={p[1]}><div class="ball heavy"></div></div>
-				<div class="col" style:--p={p[2]}><div class="ball light"></div></div>
+				<!-- Track 2: Heavy alone -->
+				<div class="col" style:--p={p[1]}>
+					<span class="track-label mono">{labelM}</span>
+					{#if phase === 'holding'}<div class="guide" aria-hidden="true"></div>{/if}
+					<div class="ball heavy">
+						{#if phase === 'idle'}<span class="reticle" aria-hidden="true"></span>{/if}
+					</div>
+				</div>
+				<!-- Track 3: Light alone -->
+				<div class="col" style:--p={p[2]}>
+					<span class="track-label mono">{labelL}</span>
+					{#if phase === 'holding'}<div class="guide" aria-hidden="true"></div>{/if}
+					<div class="ball light">
+						{#if phase === 'idle'}<span class="reticle" aria-hidden="true"></span>{/if}
+					</div>
+				</div>
 			{/if}
 		</div>
 		<div class="floor"></div>
 	</div>
 
-	{#if phase === 'holding'}
-		<p class="hint">{copy.release}</p>
-	{/if}
-	{#if phase === 'done' && scene < 2}
-		<button class="go" onclick={next}>{copy.continue}</button>
-	{/if}
-	{#if phase === 'done' && scene === 2}
-		<p class="say serif">{copy.reasoning.qualifier}</p>
-	{/if}
+	<!-- Interaction and Revelation Footer -->
+	<div class="action-footer">
+		{#if phase === 'idle'}
+			<p class="hint quiet">{copy.holdHint}</p>
+		{:else if phase === 'holding'}
+			<p class="hint active">{copy.release}</p>
+		{:else if phase === 'falling'}
+			<p class="hint active">...</p>
+		{/if}
+
+		{#if phase === 'done' && scene < 2}
+			<button class="step-btn mono" onclick={next}>
+				<span>{scene === 0 ? (copy.otherLang === 'en' ? '若将两球捆绑？ →' : 'If tied together? →') : (copy.otherLang === 'en' ? '但合体总重 9 磅…… →' : 'Yet total mass is 9 lb... →')}</span>
+			</button>
+		{/if}
+
+		{#if phase === 'done' && scene === 2}
+			<div class="collapse-box">
+				<p class="reductio-verdict serif">{copy.reasoning.qualifier}</p>
+			</div>
+		{/if}
+	</div>
 </div>
 
 <style>
 	.lab {
 		width: 100%;
+		height: 100%;
 		display: flex;
 		flex-direction: column;
 		flex: 1 1 auto;
 		min-height: 0;
-		gap: 0.6rem;
+		justify-content: space-between;
+		position: relative;
+	}
+
+	.stepper {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.8rem;
+		margin-bottom: 0.5rem;
+		z-index: 5;
+	}
+
+	.step {
+		background: none;
+		border: 1px solid rgba(212, 165, 116, 0.2);
+		border-radius: 999px;
+		padding: 0.25rem 0.75rem;
+		color: var(--text-dim);
+		font-size: 0.75rem;
+		display: flex;
+		align-items: center;
+		gap: 0.35rem;
+		cursor: pointer;
+		transition: all 0.3s ease;
+	}
+
+	.step.active {
+		border-color: var(--accent);
+		color: var(--accent);
+		background: rgba(212, 165, 116, 0.1);
+	}
+
+	.step.passed {
+		border-color: rgba(212, 165, 116, 0.4);
+		color: var(--text);
+	}
+
+	.step-num {
+		font-weight: 600;
+	}
+
+	.step-arrow {
+		color: rgba(212, 165, 116, 0.3);
+		font-size: 0.75rem;
+	}
+
+	.statement-wrap {
+		text-align: center;
+		min-height: 3rem;
+		display: flex;
+		align-items: center;
+		justify-content: center;
 	}
 
 	.say {
-		min-height: 2.6rem;
-		margin: 0 0 0.8rem;
-		font-size: clamp(1.15rem, 2vw, 1.4rem);
-		color: var(--text-dim);
-		max-width: 40rem;
+		margin: 0;
+		font-size: clamp(1.15rem, 2.2vw, 1.45rem);
+		color: var(--text);
+		max-width: 44rem;
+		line-height: 1.4;
+		text-shadow: 0 2px 12px rgba(0, 0, 0, 0.8);
 	}
 
 	.stage {
 		position: relative;
 		flex: 1 1 auto;
-		min-height: 22rem;
-		height: 0;
+		min-height: 180px;
+		max-height: 48vh;
 		cursor: grab;
 		touch-action: none;
+		margin: 0.5rem 0;
+	}
+
+	.stage.holding {
+		cursor: grabbing;
+	}
+
+	.stage.falling,
+	.stage.done {
+		cursor: default;
 	}
 
 	.drop {
 		position: absolute;
-		inset: 2.6rem 0 0.55rem;
+		inset: 2rem 0 0.55rem;
 		display: flex;
 		justify-content: space-evenly;
+		align-items: stretch;
 	}
 
 	.col {
 		position: relative;
-		width: 4.5rem;
+		width: 5.5rem;
 		height: 100%;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+	}
+
+	.track-label {
+		position: absolute;
+		top: -1.6rem;
+		font-size: 0.72rem;
+		color: var(--text-dim);
+		letter-spacing: 0.05em;
+		white-space: nowrap;
+		pointer-events: none;
+	}
+
+	.active-label {
+		color: var(--accent);
+		font-weight: 500;
+	}
+
+	.guide {
+		position: absolute;
+		left: 50%;
+		top: 0.5rem;
+		bottom: 0.4rem;
+		width: 0;
+		border-left: 1px dashed color-mix(in srgb, var(--accent) 50%, transparent);
+		transform: translateX(-50%);
+		pointer-events: none;
+		z-index: 1;
 	}
 
 	.ball {
@@ -172,36 +380,90 @@
 		border-radius: 50%;
 		transform: translateX(-50%);
 		background: radial-gradient(circle at 35% 30%, #e8c89a, #b07a3a 55%, #6a4a28);
-		box-shadow: 0 0.25rem 0.5rem #0005;
+		box-shadow: 0 0.35rem 0.8rem rgba(0, 0, 0, 0.6);
+		transition: transform 0.15s ease-out;
+		z-index: 2;
 	}
 
+	.reticle {
+		position: absolute;
+		inset: -6px;
+		border-radius: 50%;
+		border: 1px dashed color-mix(in srgb, var(--accent) 75%, transparent);
+		pointer-events: none;
+		animation: reticle-pulse 2.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+	}
+
+	@keyframes reticle-pulse {
+		0%,
+		100% {
+			transform: scale(0.95);
+			opacity: 0.35;
+		}
+		50% {
+			transform: scale(1.18);
+			opacity: 0.85;
+		}
+	}
+
+	/* Bottom-aligned release baseline at 3.3rem from the top:
+	   - Heavy (height 2rem): top = 1.3rem -> bottom = 3.3rem
+	   - Light (height 1.25rem): top = 2.05rem -> bottom = 3.3rem
+	   - Combo: heavy at bottom (top = 1.3rem -> bottom = 3.3rem)
+	            light on top (top = 0.2rem -> bottom = 1.45rem)
+	            cord tie at junction (top = 1.28rem)
+	   At floor (p = 1):
+	   - All bottoms reach 100%, completing equal distance (100% - 3.3rem)
+	*/
 	.heavy {
-		width: 1.7rem;
-		height: 1.7rem;
-		top: calc(var(--p, 0) * (100% - 1.7rem));
+		width: 2rem;
+		height: 2rem;
+		top: calc(1.3rem + var(--p, 0) * (100% - 3.3rem));
 	}
 
 	.light {
-		width: 1.05rem;
-		height: 1.05rem;
-		top: calc(var(--p, 0) * (100% - 1.05rem));
+		width: 1.25rem;
+		height: 1.25rem;
+		top: calc(2.05rem + var(--p, 0) * (100% - 3.3rem));
+	}
+
+	.holding .ball,
+	.holding .combo-cord {
+		transform: translate(-50%, -0.22rem);
 	}
 
 	.combo .light {
-		top: calc(var(--p, 0) * (100% - 2.62rem));
+		top: calc(0.2rem + var(--p, 0) * (100% - 3.3rem));
 	}
 
 	.combo .heavy {
-		top: calc(0.92rem + var(--p, 0) * (100% - 2.62rem));
+		top: calc(1.3rem + var(--p, 0) * (100% - 3.3rem));
+	}
+
+	.combo-cord {
+		position: absolute;
+		left: 50%;
+		top: calc(1.28rem + var(--p, 0) * (100% - 3.3rem));
+		width: 1.15rem;
+		height: 0.26rem;
+		transform: translateX(-50%);
+		border-radius: 2px;
+		background: #8b5a2b;
+		border: 1px solid rgba(212, 165, 116, 0.85);
+		box-shadow: 0 1px 4px rgba(0, 0, 0, 0.7);
+		z-index: 4;
+		pointer-events: none;
+		transition: transform 0.15s ease-out;
 	}
 
 	.floor {
 		position: absolute;
 		bottom: 0.4rem;
-		left: 8%;
-		right: 8%;
-		height: 3px;
+		left: 10%;
+		right: 10%;
+		height: 2px;
 		background: color-mix(in srgb, var(--accent) 35%, #2a241c);
+		box-shadow: 0 0 8px rgba(212, 165, 116, 0.2);
 	}
 
 	.arrow {
@@ -210,7 +472,7 @@
 		width: 0.85rem;
 		height: 2.2rem;
 		transform: translateX(-50%);
-		z-index: 2;
+		z-index: 3;
 		pointer-events: none;
 	}
 
@@ -226,29 +488,89 @@
 	}
 
 	.up {
-		top: -2.35rem;
+		top: -2.1rem;
 		color: #7ec8c8;
 	}
 
 	.down {
-		top: 2.55rem;
+		top: 3.45rem;
 		color: #c47a4a;
 	}
 
 	.merged {
-		top: 2.75rem;
+		top: 3.45rem;
 		width: 1.1rem;
 		height: 2.5rem;
 	}
 
-	.hint,
-	.go {
-		margin-top: 1rem;
-		color: var(--accent);
+	.action-footer {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		min-height: 4rem;
+		z-index: 10;
 	}
 
-	.go {
-		border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
-		padding: 0.55rem 1rem;
+	.hint {
+		margin: 0;
+		color: var(--accent);
+		font-size: 0.9rem;
+		transition: opacity 0.3s ease;
+	}
+
+	.hint.quiet {
+		opacity: 0.7;
+		letter-spacing: 0.04em;
+	}
+
+	.hint.active {
+		opacity: 1;
+		font-weight: 500;
+	}
+
+	.step-btn {
+		margin-top: 0.5rem;
+		padding: 0.5rem 1.2rem;
+		border-radius: 999px;
+		background: rgba(212, 165, 116, 0.12);
+		border: 1px solid var(--accent);
+		color: var(--accent);
+		cursor: pointer;
+		font-size: 0.85rem;
+		letter-spacing: 0.04em;
+		transition: all 0.25s ease;
+	}
+
+	.step-btn:hover {
+		background: var(--accent);
+		color: #0b0a08;
+		box-shadow: 0 0 16px rgba(212, 165, 116, 0.4);
+	}
+
+	.collapse-box {
+		animation: box-fade 0.8s ease-out;
+		text-align: center;
+		max-width: 38rem;
+		padding: 0.6rem 1rem;
+	}
+
+	@keyframes box-fade {
+		from {
+			opacity: 0;
+			transform: scale(0.96);
+		}
+		to {
+			opacity: 1;
+			transform: scale(1);
+		}
+	}
+
+	.reductio-verdict {
+		margin: 0;
+		font-size: clamp(1rem, 1.8vw, 1.2rem);
+		color: var(--accent);
+		line-height: 1.45;
+		letter-spacing: 0.02em;
 	}
 </style>

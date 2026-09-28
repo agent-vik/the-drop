@@ -59,10 +59,13 @@
 
 <style>
 	.museum {
-		min-height: 100dvh;
+		height: 100dvh;
+		overflow: hidden;
 		background: var(--room-bg);
 		transition: background-color 0.8s ease;
 		position: relative;
+		display: flex;
+		flex-direction: column;
 	}
 
 	.chrome {
@@ -222,12 +225,14 @@
 	.stage {
 		position: relative;
 		z-index: 1;
-		min-height: 100dvh;
+		flex: 1 1 auto;
+		min-height: 0;
+		overflow: hidden;
 		display: flex;
 		flex-direction: column;
 		justify-content: flex-start;
 		align-items: stretch;
-		padding: 5.5rem var(--system-pad) 2.25rem;
+		padding: 5.5rem var(--system-pad) 1.4rem;
 		max-width: none;
 	}
 
@@ -243,13 +248,18 @@
 		flex: 0 0 auto;
 	}
 
+	.stage :global(> h1) {
+		font-size: clamp(1.7rem, 3.8vw, 2.6rem);
+		margin-top: 0.15rem;
+	}
+
 	.stage :global(.walk),
 	.stage :global(.lab),
 	.stage :global(.shop),
 	.stage :global(.moon) {
 		flex: 1 1 auto;
 		width: 100%;
-		min-height: 18rem;
+		min-height: 0;
 		max-width: none;
 	}
 
@@ -258,7 +268,7 @@
 	.stage :global(.join) {
 		flex: 1 1 auto;
 		width: min(100%, 58rem);
-		min-height: 18rem;
+		min-height: 0;
 		align-self: center;
 	}
 </style>

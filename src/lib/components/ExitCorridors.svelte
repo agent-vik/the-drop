@@ -70,6 +70,7 @@
 	.join {
 		width: min(100%, 58rem);
 		min-height: 0;
+		height: 100%;
 		align-self: center;
 	}
 
@@ -85,7 +86,7 @@
 		display: flex;
 		flex-direction: column;
 		justify-content: flex-end;
-		min-height: min(56vh, 30rem);
+		min-height: min(42vh, 22rem);
 		padding: 0 0 1.4rem;
 		color: var(--accent);
 		text-align: center;

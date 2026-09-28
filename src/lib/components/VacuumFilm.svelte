@@ -33,5 +33,8 @@
 
 	.moon.done {
 		opacity: 0;
+		flex: 0 0 0;
+		height: 0;
+		overflow: hidden;
 	}
 </style>

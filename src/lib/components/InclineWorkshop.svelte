@@ -20,8 +20,9 @@
 		half: { sum: 0, n: 0 },
 		full: { sum: 0, n: 0 }
 	});
+	let samples = $state<{ mark: Mark; t: number }[]>([]);
 
-	let start = 0;
+	let lastNow = 0;
 	let frame = 0;
 	const duration = INCLINE.full;
 	const flight = INCLINE.flight;
@@ -87,13 +88,14 @@
 
 	function startRun() {
 		if (rolling || mode === 'reveal') return;
+		cancelAnimationFrame(frame);
 		rolling = true;
 		waterStopped = false;
 		message = '';
 		t = 0;
 		p = 0;
 		water = 0;
-		start = performance.now();
+		lastNow = performance.now();
 		placeOnBeam(0);
 		tick();
 	}
@@ -115,22 +117,24 @@
 	}
 
 	function tick() {
-		const elapsed = (performance.now() - start) / 1000;
-		t = elapsed;
-		p = along(elapsed);
+		const now = performance.now();
+		const dt = Math.min(0.05, Math.max(0, (now - lastNow) / 1000));
+		lastNow = now;
+		t = Math.min(t + dt, duration + flight + rest);
+		p = along(t);
 
-		if (elapsed <= duration) {
+		if (t <= duration) {
 			placeOnBeam(p);
-			if (!waterStopped) water = Math.min(1, elapsed / duration);
+			if (!waterStopped) water = Math.min(1, t / duration);
 		} else {
-			placeInFlight(elapsed - duration);
-			if (elapsed >= duration + flight && !waterStopped) {
+			placeInFlight(t - duration);
+			if (t >= duration + flight && !waterStopped) {
 				waterStopped = true;
 				if (mode === 'measure') message = copy.invalid;
 			}
 		}
 
-		if (elapsed >= duration + flight + rest) {
+		if (t >= duration + flight + rest) {
 			if (mode === 'measure' && !waterStopped && message === '') finishRun(copy.invalid);
 			else finishRun();
 			return;
@@ -168,6 +172,7 @@
 			n: means[hit].n + 1
 		};
 		means = { ...means };
+		samples = [...samples, { mark: hit, t }];
 		message = '';
 	}
 
@@ -179,10 +184,65 @@
 
 	const complete = $derived(means.quarter.n >= 1 && means.half.n >= 1 && means.full.n >= 1);
 	const tilt = $derived(-12 * (1 - water));
+	const dist: Record<Mark, number> = { quarter: 0.25, half: 0.5, full: 1 };
+	const plot = { x0: 22, y0: 10, w: 126, h: 68, tmax: 5.6, dmax: 1.12 };
+
+	function tx(time: number) {
+		return plot.x0 + (time / plot.tmax) * plot.w;
+	}
+	function dy(d: number) {
+		return plot.y0 + plot.h - (d / plot.dmax) * plot.h;
+	}
+
+	const curvePath = $derived.by(() => {
+		const pts: string[] = [];
+		for (let i = 0; i <= 40; i++) {
+			const time = 0.35 + (INCLINE.full - 0.35) * (i / 40);
+			const d = (time / INCLINE.full) ** 2;
+			pts.push(`${i === 0 ? 'M' : 'L'} ${tx(time).toFixed(2)} ${dy(d).toFixed(2)}`);
+		}
+		return pts.join(' ');
+	});
+
+	const streamGeom = $derived.by(() => {
+		const box = 3 / 5;
+		const vatW = 64;
+		const vatH = vatW * (640 / 320) * box;
+		const spoutX = 36 + 0.494 * vatW;
+		const spoutY = 0.515 * vatH;
+		const scaleW = 76;
+		const scaleH = scaleW * (400 / 358) * box;
+		const px = 2 + 0.486 * scaleW;
+		const py = 34 + 0.22 * scaleH;
+		const arm = 0.36 * scaleW;
+		const rad = (tilt * Math.PI) / 180;
+		const hookY = py + arm * Math.sin(rad) * box;
+		const jarW = 0.26 * scaleW;
+		const jarH = jarW * (280 / 112) * box;
+		const jarTop = hookY - 0.05 * jarH;
+		const surfaceY = jarTop + (0.957 - water * 0.671) * jarH;
+		return {
+			left: spoutX,
+			top: spoutY,
+			height: Math.max(3, surfaceY - spoutY)
+		};
+	});
 
 	$effect(() => {
 		if (mode === 'reveal') onReady?.();
 	});
+
+	function handleKeydown(e: KeyboardEvent) {
+		if (e.key === ' ' || e.key === 'Enter') {
+			if (!rolling && mode !== 'reveal') {
+				e.preventDefault();
+				startRun();
+			} else if (rolling && !waterStopped) {
+				e.preventDefault();
+				stopWater();
+			}
+		}
+	}
 
 	function mean(mark: Mark) {
 		const cell = means[mark];
@@ -190,6 +250,8 @@
 		return `${(cell.sum / cell.n).toFixed(2)} ×${cell.n}`;
 	}
 </script>
+
+<svelte:window onkeydown={handleKeydown} />
 
 <div class="shop">
 	<div class="beam">
@@ -206,28 +268,121 @@
 					/>
 				{/each}
 			</svg>
-			<div class="ball" style:left="{ballX}%" style:top="{ballY}%"></div>
+			<button
+				class="ball"
+				style:left="{ballX}%"
+				style:top="{ballY}%"
+				onpointerdown={startRun}
+				onclick={startRun}
+				disabled={rolling || mode === 'reveal'}
+				aria-label={copy.release}
+			>
+				{#if !rolling && mode !== 'reveal'}
+					<span class="reticle" aria-hidden="true"></span>
+				{/if}
+			</button>
 			{#each grooveMarks as m}
 				<span class="tick" style:left="{m.left}%" style:top="{m.top}%">{m.label}</span>
 			{/each}
-			<button class="gate" onclick={startRun} disabled={rolling || mode === 'reveal'} aria-label="release"></button>
+			<button
+				class="gate"
+				class:ready={!rolling && mode !== 'reveal'}
+				onpointerdown={startRun}
+				onclick={startRun}
+				disabled={rolling || mode === 'reveal'}
+				aria-label={copy.release}
+			>
+				{#if !rolling && mode !== 'reveal'}
+					<span class="gate-ripple" aria-hidden="true"></span>
+				{/if}
+			</button>
 		</div>
 	</div>
-	<div class="clock" style:--w={water} style:--tilt="{tilt}deg">
+	<div
+		class="clock"
+		class:active={rolling && !waterStopped}
+		style:--w={water}
+		style:--tilt="{tilt}deg"
+		role="region"
+		aria-label="water clock"
+		onpointerdown={() => {
+			if (rolling && !waterStopped) stopWater();
+		}}
+	>
 		<div class="vat">
 			<img class="vat-plate" src="/images/water-vat.webp" alt="" />
-			<button class="spout" onclick={stopWater} disabled={!rolling || waterStopped} aria-label="stop water"></button>
-			{#if rolling && !waterStopped}
-				<span class="stream" aria-hidden="true"></span>
-			{/if}
+			<button
+				class="spout"
+				class:active={rolling && !waterStopped}
+				onpointerdown={stopWater}
+				onclick={stopWater}
+				disabled={!rolling || waterStopped}
+				aria-label="stop water"
+			>
+				{#if rolling && !waterStopped}
+					<span class="spout-ring ring-1" aria-hidden="true"></span>
+					<span class="spout-ring ring-2" aria-hidden="true"></span>
+					<span class="spout-core" aria-hidden="true"></span>
+				{/if}
+			</button>
 		</div>
+		{#if rolling && !waterStopped}
+			<span
+				class="stream"
+				style:left="{streamGeom.left}%"
+				style:top="{streamGeom.top}%"
+				style:height="{streamGeom.height}%"
+				aria-hidden="true"
+			></span>
+		{/if}
 		<div class="scale">
 			<img class="post" src="/images/balance-post.webp" alt="" />
 			<div class="rig">
 				<span class="arm" aria-hidden="true"></span>
 				<img class="hang left" src="/images/balance-weights.webp" alt="" />
 				<div class="hang right">
-					<div class="fill"></div>
+					<svg class="fill-svg" viewBox="0 0 112 280" aria-hidden="true">
+						<defs>
+							<clipPath id="jar-inner-chamber">
+								<path
+									d="M 8.5 96
+									   L 8.5 258
+									   C 8.5 264, 25 268, 56 268
+									   C 87 268, 103.5 264, 103.5 258
+									   L 103.5 96
+									   C 103.5 86, 92 74, 70 72
+									   L 42 72
+									   C 20 74, 8.5 86, 8.5 96 Z"
+								/>
+							</clipPath>
+							<linearGradient id="jar-water-grad" x1="0" y1="0" x2="0" y2="1">
+								<stop offset="0%" stop-color="#8da89e" stop-opacity="0.9" />
+								<stop offset="100%" stop-color="#5f776d" stop-opacity="0.95" />
+							</linearGradient>
+						</defs>
+						{#if water > 0}
+							<g clip-path="url(#jar-inner-chamber)">
+								<rect
+									class="water-body"
+									x="0"
+									y="{268 - water * 188}"
+									width="112"
+									height="{water * 188 + 10}"
+									fill="url(#jar-water-grad)"
+								/>
+								<line
+									class="water-meniscus"
+									x1="6"
+									x2="106"
+									y1="{268 - water * 188}"
+									y2="{268 - water * 188}"
+									stroke="#c2ded5"
+									stroke-width="1.2"
+									stroke-opacity="0.85"
+								/>
+							</g>
+						{/if}
+					</svg>
 					<img src="/images/balance-jar.webp" alt="" />
 				</div>
 			</div>
@@ -241,7 +396,7 @@
 			<p class="hint">{message}</p>
 		{/if}
 		{#if mode === 'practice'}
-			<button class="go" onclick={beginOfficial}>{copy.startMeasure}</button>
+			<button class="act" onclick={beginOfficial}>{copy.startMeasure}</button>
 		{/if}
 		{#if mode === 'measure'}
 			<table class="mono">
@@ -252,16 +407,35 @@
 				</tbody>
 			</table>
 			{#if complete}
-				<button class="go" onclick={() => (mode = 'reveal')}>{copy.drawCurve}</button>
+				<button class="act" onclick={() => (mode = 'reveal')}>{copy.drawCurve}</button>
 			{/if}
 		{/if}
 	</div>
 	{#if mode === 'reveal'}
 		<div class="veil">
-			<svg viewBox="0 0 120 80" aria-hidden="true">
-				<path d="M8 72 Q 40 40 70 22 T 112 8" fill="none" stroke="#d4a574" stroke-width="1.2" />
-				<text x="10" y="12" fill="#d4a574" font-size="6">d ∝ t²</text>
+			<svg viewBox="0 0 160 100" aria-hidden="true">
+				<text class="axis" x={plot.x0} y="96">t</text>
+				<text class="axis" x="6" y={plot.y0 + 4}>d</text>
+				{#each samples as s, i (i)}
+					{@const meanT = means[s.mark].sum / means[s.mark].n}
+					<circle
+						class="pale"
+						cx={tx(s.t)}
+						cy={dy(dist[s.mark])}
+						r="1.7"
+						style:--drift="{(s.t - meanT) * 18}px"
+						style:animation-delay="{0.08 * i}s"
+					/>
+				{/each}
+				{#each (['quarter', 'half', 'full'] as const) as mark}
+					{#if means[mark].n}
+						<circle class="bright" cx={tx(means[mark].sum / means[mark].n)} cy={dy(dist[mark])} r="2.6" />
+					{/if}
+				{/each}
+				<path class="curve" d={curvePath} />
+				<text class="law" x="28" y="18">d ∝ t²</text>
 			</svg>
+			<p class="law-line serif">{copy.curveLaw}</p>
 		</div>
 	{/if}
 </div>
@@ -273,16 +447,16 @@
 		min-height: 0;
 		display: grid;
 		grid-template-columns: minmax(0, 1fr) minmax(10.5rem, 15.5rem);
-		grid-template-rows: auto minmax(0, 1fr) auto;
+		grid-template-rows: minmax(0, 1fr) auto;
 		gap: 0.55rem 0.8rem;
 		align-items: stretch;
-		overflow: visible;
+		overflow: hidden;
 	}
 
 	.beam {
 		position: relative;
 		grid-column: 1 / -1;
-		grid-row: 1 / 3;
+		grid-row: 1;
 		width: 100%;
 		min-height: 0;
 		display: grid;
@@ -291,7 +465,9 @@
 
 	.plate {
 		position: relative;
-		width: min(100%, calc(min(72vh, 40rem) * 768 / 1365));
+		height: 100%;
+		width: auto;
+		max-width: 100%;
 		aspect-ratio: 768 / 1365;
 	}
 
@@ -328,10 +504,42 @@
 		width: 1.15rem;
 		height: 1.15rem;
 		border-radius: 50%;
+		border: 0;
+		padding: 0;
 		background: radial-gradient(circle at 35% 30%, #e8c89a, #b07a3a 62%, #6a4a28);
 		transform: translate(-50%, -50%);
 		z-index: 2;
 		box-shadow: 0 0.2rem 0.4rem #0006;
+		cursor: pointer;
+	}
+
+	.reticle {
+		position: absolute;
+		inset: -5px;
+		border-radius: 50%;
+		border: 1px dashed color-mix(in srgb, var(--accent) 75%, transparent);
+		pointer-events: none;
+		animation: reticle-pulse 2.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+	}
+
+	@keyframes reticle-pulse {
+		0%,
+		100% {
+			transform: scale(0.95);
+			opacity: 0.35;
+		}
+		50% {
+			transform: scale(1.18);
+			opacity: 0.85;
+		}
+	}
+
+	.ball:hover .reticle {
+		transform: scale(1.02);
+		border: 1.5px solid var(--accent);
+		box-shadow: 0 0 10px var(--accent);
+		opacity: 1;
+		animation: none;
 	}
 
 	.tick {
@@ -360,17 +568,53 @@
 		background: var(--accent);
 		background-clip: content-box;
 		border-radius: 1px;
+		border: 0;
 		z-index: 3;
+		cursor: pointer;
+	}
+
+	.gate.ready:hover {
+		filter: brightness(1.3);
+	}
+
+	.gate-ripple {
+		position: absolute;
+		left: 50%;
+		top: 50%;
+		width: 18px;
+		height: 32px;
+		transform: translate(-50%, -50%);
+		border-radius: 3px;
+		border: 1px solid var(--accent);
+		opacity: 0;
+		pointer-events: none;
+		animation: gate-pulse 2.2s cubic-bezier(0.2, 0.8, 0.3, 1) infinite;
+	}
+
+	@keyframes gate-pulse {
+		0% {
+			transform: translate(-50%, -50%) scale(0.85);
+			opacity: 0.85;
+		}
+		65% {
+			transform: translate(-50%, -50%) scale(1.35);
+			opacity: 0;
+		}
+		100% {
+			transform: translate(-50%, -50%) scale(1.35);
+			opacity: 0;
+		}
 	}
 
 	.clock {
 		grid-column: 2;
-		grid-row: 1 / 3;
+		grid-row: 1;
 		position: relative;
 		z-index: 3;
 		width: 100%;
+		height: auto;
+		max-height: 100%;
 		aspect-ratio: 3 / 5;
-		max-height: min(62vh, 30rem);
 		justify-self: end;
 		align-self: start;
 		overflow: visible;
@@ -378,6 +622,10 @@
 		--arm: 36%;
 		--pivot-x: 48.6%;
 		--pivot-y: 22%;
+	}
+
+	.clock.active {
+		cursor: pointer;
 	}
 
 	.vat {
@@ -406,31 +654,95 @@
 
 	.spout {
 		position: absolute;
-		left: 50%;
-		top: 46%;
-		width: 22%;
-		height: 10%;
-		min-width: 44px;
-		min-height: 44px;
+		left: 49.4%;
+		top: 53%;
+		width: 28%;
+		height: 14%;
+		min-width: 58px;
+		min-height: 58px;
 		border-radius: 50%;
 		border: 0;
 		background: transparent;
-		transform: translate(-50%, -20%);
-		z-index: 4;
+		transform: translate(-50%, -50%);
+		z-index: 20;
+		cursor: default;
+		display: grid;
+		place-items: center;
+		pointer-events: auto;
+	}
+
+	.spout.active {
+		cursor: pointer;
+	}
+
+	.spout-core {
+		position: absolute;
+		width: 14px;
+		height: 14px;
+		border-radius: 50%;
+		background: radial-gradient(circle at 35% 35%, #fff 0%, var(--accent) 55%, #8a5a28 100%);
+		box-shadow: 0 0 12px var(--accent), 0 0 20px color-mix(in srgb, var(--accent) 75%, transparent);
+		animation: core-pulse 1.2s ease-in-out infinite alternate;
+		pointer-events: none;
+		z-index: 2;
+	}
+
+	.spout-ring {
+		position: absolute;
+		width: 22px;
+		height: 22px;
+		border-radius: 50%;
+		border: 1.5px solid var(--accent);
+		pointer-events: none;
+		opacity: 0;
+		animation: spout-ripple 1.6s cubic-bezier(0.1, 0.7, 0.2, 1) infinite;
+	}
+
+	.ring-2 {
+		animation-delay: 0.8s;
+	}
+
+	@keyframes core-pulse {
+		0% {
+			transform: scale(0.9);
+			filter: brightness(0.95);
+		}
+		100% {
+			transform: scale(1.22);
+			filter: brightness(1.3);
+		}
+	}
+
+	@keyframes spout-ripple {
+		0% {
+			transform: scale(0.65);
+			opacity: 0.95;
+		}
+		75% {
+			transform: scale(2.2);
+			opacity: 0;
+		}
+		100% {
+			transform: scale(2.2);
+			opacity: 0;
+		}
+	}
+
+	.spout.active:hover .spout-core {
+		transform: scale(1.35);
+		filter: brightness(1.4);
+		box-shadow: 0 0 16px #fff, 0 0 24px var(--accent);
 	}
 
 	.stream {
 		position: absolute;
-		left: 50%;
-		top: 50%;
-		width: 0.18rem;
-		height: 42%;
+		width: 0.16rem;
 		transform: translateX(-50%);
 		background: #7d958c;
 		border-radius: 99px;
 		pointer-events: none;
 		z-index: 2;
-		opacity: 0.88;
+		opacity: 0.9;
 	}
 
 	.scale {
@@ -440,6 +752,7 @@
 		width: 76%;
 		z-index: 3;
 		overflow: visible;
+		pointer-events: none;
 	}
 
 	.post {
@@ -467,6 +780,7 @@
 		transform-origin: var(--pivot-x) var(--pivot-y);
 		transition: transform 0.4s ease-out;
 		z-index: 3;
+		pointer-events: none;
 	}
 
 	.arm {
@@ -498,15 +812,11 @@
 		width: 26%;
 	}
 
-	.fill {
+	.fill-svg {
 		position: absolute;
-		left: 20%;
-		top: 26%;
-		width: 60%;
-		height: 60%;
-		border-radius: 18% 18% 30% 30%;
-		background: linear-gradient(#7d958ccc, #6a8278ee) 0 100% / 100% calc(var(--w) * 86%) no-repeat;
-		background-color: transparent;
+		inset: 0;
+		width: 100%;
+		height: 100%;
 		pointer-events: none;
 		z-index: 0;
 	}
@@ -519,7 +829,7 @@
 
 	.desk {
 		grid-column: 1;
-		grid-row: 3;
+		grid-row: 2;
 		z-index: 3;
 		display: flex;
 		flex-direction: column;
@@ -533,10 +843,11 @@
 		font-size: 0.9rem;
 	}
 
-	.go {
-		border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
-		padding: 0.55rem 1rem;
+	.act {
+		border: 0;
+		padding: 0.15rem 0;
 		color: var(--accent);
+		font-size: 0.95rem;
 	}
 
 	table {
@@ -551,28 +862,98 @@
 			grid-template-columns: minmax(0, 1fr) minmax(7.2rem, 11rem);
 		}
 
-		.plate {
-			width: min(100%, calc(min(58vh, 28rem) * 768 / 1365));
-		}
-
 		.tick {
 			font-size: 1.2rem;
 		}
 
 		.clock {
-			max-height: 42vh;
+			max-height: 100%;
 		}
 	}
 
 	.veil {
 		position: absolute;
 		inset: 0;
-		background: color-mix(in srgb, #1f160d 55%, transparent);
-		display: grid;
-		place-items: center;
+		z-index: 8;
+		background: color-mix(in srgb, #1f160d 62%, transparent);
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: 0.6rem;
+		padding: 1rem;
 	}
 
-	svg {
-		width: min(100%, 22rem);
+	.veil svg {
+		width: min(100%, 34rem);
+		height: auto;
+		overflow: visible;
+	}
+
+	.pale {
+		fill: color-mix(in srgb, var(--accent) 55%, transparent);
+		animation: gather 1.35s ease-out both;
+	}
+
+	.bright {
+		fill: var(--accent);
+		opacity: 0;
+		animation: rise 0.7s 1.25s ease both;
+	}
+
+	.curve {
+		fill: none;
+		stroke: var(--accent);
+		stroke-width: 1.15;
+		stroke-linecap: round;
+		stroke-dasharray: 280;
+		stroke-dashoffset: 280;
+		animation: draw 1.7s 2.5s ease forwards;
+	}
+
+	.law {
+		fill: var(--accent);
+		font-size: 7px;
+		opacity: 0;
+		animation: rise 0.8s 2.1s ease both;
+	}
+
+	.axis {
+		fill: color-mix(in srgb, var(--accent) 55%, transparent);
+		font-size: 5px;
+	}
+
+	.law-line {
+		margin: 0;
+		color: var(--accent);
+		font-size: clamp(1.05rem, 2vw, 1.35rem);
+		opacity: 0;
+		animation: rise 0.8s 2.15s ease both;
+	}
+
+	@keyframes gather {
+		from {
+			opacity: 0;
+			transform: translateX(var(--drift, 0px));
+		}
+		to {
+			opacity: 0.75;
+			transform: none;
+		}
+	}
+
+	@keyframes rise {
+		from {
+			opacity: 0;
+		}
+		to {
+			opacity: 1;
+		}
+	}
+
+	@keyframes draw {
+		to {
+			stroke-dashoffset: 0;
+		}
 	}
 </style>

@@ -5,6 +5,11 @@ export type Copy = {
 	langName: string;
 	otherLang: Locale;
 	continue: string;
+	intoArchive: string;
+	intoEcho: string;
+	intoCorridors: string;
+	curveLaw: string;
+	holdHint: string;
 	release: string;
 	retry: string;
 	stopwatch: string;
@@ -33,6 +38,11 @@ const en: Copy = {
 	langName: '中文',
 	otherLang: 'zh',
 	continue: 'Continue',
+	intoArchive: 'The papers are this way',
+	intoEcho: 'And still it falls',
+	intoCorridors: 'Two corridors',
+	curveLaw: 'Distance grows as the square of time',
+	holdHint: 'Hold, then release',
 	release: 'Release',
 	retry: 'Again',
 	stopwatch: 'Watch the landing. Press when it hits.',
@@ -93,6 +103,11 @@ const zh: Copy = {
 	langName: 'EN',
 	otherLang: 'en',
 	continue: '继续',
+	intoArchive: '档案在这边',
+	intoEcho: '可它还是落下',
+	intoCorridors: '两条走廊',
+	curveLaw: '路程按时间的平方增长',
+	holdHint: '按住，松手',
 	release: '松手，释放',
 	retry: '再来一次',
 	stopwatch: '盯住落地点，球落地瞬间按秒表',

@@ -10,13 +10,13 @@ export function fallProgress(elapsed: number, duration: number): number {
  * so the duration follows Earth g at that height — otherwise the quadratic
  * crawl looks like low gravity.
  */
-export const TOWER_FALL_SECONDS = 1.45;
+export const TOWER_FALL_SECONDS = 0.85;
 
 /** Fake Aristotle durations: same felt g as the tower, heavier lands first. */
 export const ARISTOTLE_FALL = [
-	[0.9, 1.45],
-	[0.9, 1.15, 1.45],
-	[0.72, 0.9, 1.45]
+	[0.53, 0.85],
+	[0.53, 0.67, 0.85],
+	[0.42, 0.53, 0.85]
 ] as const;
 
 export const INCLINE = {
