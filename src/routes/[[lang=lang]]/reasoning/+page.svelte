@@ -4,7 +4,6 @@
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
-	let open = $state(false);
 	const text = $derived(data.copy.rooms.reasoning);
 </script>
 
@@ -23,17 +22,11 @@
 
 	<!-- Main Arena -->
 	<div class="arena-viewport">
-		<ReasoningDrop copy={data.copy} onDone={() => (open = true)} />
+		<ReasoningDrop
+			copy={data.copy}
+			nextUrl={roomPath(data.locale, 'echo')}
+		/>
 	</div>
-
-	<!-- Forward Portal to Echo Room -->
-	{#if open}
-		<div class="forward-bar">
-			<a class="next-link" href={roomPath(data.locale, 'echo')}>
-				<span>{data.copy.intoEcho} →</span>
-			</a>
-		</div>
-	{/if}
 </div>
 
 <style>
@@ -104,56 +97,9 @@
 		position: relative;
 	}
 
-	.forward-bar {
-		position: absolute;
-		bottom: 1.2rem;
-		right: var(--system-pad, 2rem);
-		z-index: 25;
-		animation: emerge 0.6s cubic-bezier(0.16, 1, 0.3, 1);
-	}
-
-	@keyframes emerge {
-		from {
-			opacity: 0;
-			transform: translateY(12px) scale(0.96);
-		}
-		to {
-			opacity: 1;
-			transform: translateY(0) scale(1);
-		}
-	}
-
-	.next-link {
-		display: inline-flex;
-		align-items: center;
-		padding: 0.55rem 1.2rem;
-		border-radius: 999px;
-		background: rgba(18, 14, 10, 0.88);
-		border: 1px solid var(--accent);
-		color: var(--accent);
-		text-decoration: none;
-		font-size: 0.9rem;
-		font-weight: 500;
-		letter-spacing: 0.04em;
-		backdrop-filter: blur(12px);
-		-webkit-backdrop-filter: blur(12px);
-		box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6), 0 0 12px rgba(212, 165, 116, 0.25);
-		transition: transform 0.2s ease, box-shadow 0.2s ease;
-	}
-
-	.next-link:hover {
-		transform: translateX(4px) scale(1.03);
-		box-shadow: 0 6px 24px rgba(212, 165, 116, 0.4);
-	}
-
 	@media (max-width: 640px) {
 		.reasoning-room {
 			padding-top: 3.8rem;
-		}
-		.forward-bar {
-			bottom: 0.8rem;
-			right: 50%;
-			transform: translateX(50%);
 		}
 	}
 </style>

@@ -1,11 +1,16 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import { ARISTOTLE_FALL } from '$lib/physics';
 	import type { Copy } from '$lib/i18n';
 
 	type Scene = 0 | 1 | 2;
 	type Phase = 'idle' | 'holding' | 'falling' | 'done';
 
-	let { copy, onDone }: { copy: Copy; onDone?: () => void } = $props();
+	let {
+		copy,
+		onDone,
+		nextUrl
+	}: { copy: Copy; onDone?: () => void; nextUrl?: string } = $props();
 
 	let scene = $state<Scene>(0);
 	let phase = $state<Phase>('idle');
@@ -64,6 +69,9 @@
 			} else if (phase === 'done' && scene < 2) {
 				e.preventDefault();
 				next();
+			} else if (phase === 'done' && scene === 2 && nextUrl) {
+				e.preventDefault();
+				void goto(nextUrl);
 			}
 		}
 	}
@@ -157,7 +165,6 @@
 					<div class="ball light">
 						{#if phase === 'idle'}<span class="reticle" aria-hidden="true"></span>{/if}
 					</div>
-					<div class="combo-cord" aria-hidden="true"></div>
 					<div class="ball heavy">
 						{#if phase === 'idle'}<span class="reticle" aria-hidden="true"></span>{/if}
 					</div>
@@ -189,7 +196,6 @@
 					<div class="ball light">
 						{#if phase === 'idle'}<span class="reticle" aria-hidden="true"></span>{/if}
 					</div>
-					<div class="combo-cord" aria-hidden="true"></div>
 					<div class="ball heavy">
 						{#if phase === 'idle'}<span class="reticle" aria-hidden="true"></span>{/if}
 					</div>
@@ -213,27 +219,31 @@
 			{/if}
 		</div>
 		<div class="floor"></div>
-	</div>
 
-	<!-- Interaction and Revelation Footer -->
-	<div class="action-footer">
-		{#if phase === 'idle'}
-			<p class="hint quiet">{copy.holdHint}</p>
-		{:else if phase === 'holding'}
-			<p class="hint active">{copy.release}</p>
-		{:else if phase === 'falling'}
-			<p class="hint active">...</p>
-		{/if}
-
-		{#if phase === 'done' && scene < 2}
-			<button class="step-btn mono" onclick={next}>
-				<span>{scene === 0 ? (copy.otherLang === 'en' ? '若将两球捆绑？ →' : 'If tied together? →') : (copy.otherLang === 'en' ? '但合体总重 9 磅…… →' : 'Yet total mass is 9 lb... →')}</span>
-			</button>
-		{/if}
-
-		{#if phase === 'done' && scene === 2}
-			<div class="collapse-box">
-				<p class="reductio-verdict serif">{copy.reasoning.qualifier}</p>
+		{#if phase === 'done'}
+			<div class="stage-center-action">
+				{#if scene < 2}
+					<button class="step-btn mono" onclick={next}>
+						<span>{scene === 0 ? (copy.otherLang === 'en' ? '若将两球捆绑？ →' : 'If tied together? →') : (copy.otherLang === 'en' ? '但合体总重 9 磅…… →' : 'Yet total mass is 9 lb... →')}</span>
+					</button>
+				{:else}
+					<div class="collapse-box">
+						<p class="reductio-verdict serif">{copy.reasoning.qualifier}</p>
+						{#if nextUrl}
+							<div class="verdict-action">
+								<a class="forward-btn serif" href={nextUrl}>
+									<span>{copy.intoEcho} →</span>
+								</a>
+							</div>
+						{/if}
+					</div>
+				{/if}
+			</div>
+		{:else if phase === 'idle' || phase === 'holding'}
+			<div class="stage-center-hint" aria-hidden="true">
+				<p class="hint serif" class:quiet={phase === 'idle'} class:active={phase === 'holding'}>
+					{phase === 'idle' ? copy.holdHint : copy.release}
+				</p>
 			</div>
 		{/if}
 	</div>
@@ -427,33 +437,16 @@
 		top: calc(2.05rem + var(--p, 0) * (100% - 3.3rem));
 	}
 
-	.holding .ball,
-	.holding .combo-cord {
+	.holding .ball {
 		transform: translate(-50%, -0.22rem);
 	}
 
 	.combo .light {
-		top: calc(0.2rem + var(--p, 0) * (100% - 3.3rem));
+		top: calc(0.1rem + var(--p, 0) * (100% - 3.3rem));
 	}
 
 	.combo .heavy {
 		top: calc(1.3rem + var(--p, 0) * (100% - 3.3rem));
-	}
-
-	.combo-cord {
-		position: absolute;
-		left: 50%;
-		top: calc(1.28rem + var(--p, 0) * (100% - 3.3rem));
-		width: 1.15rem;
-		height: 0.26rem;
-		transform: translateX(-50%);
-		border-radius: 2px;
-		background: #8b5a2b;
-		border: 1px solid rgba(212, 165, 116, 0.85);
-		box-shadow: 0 1px 4px rgba(0, 0, 0, 0.7);
-		z-index: 4;
-		pointer-events: none;
-		transition: transform 0.15s ease-out;
 	}
 
 	.floor {
@@ -503,56 +496,110 @@
 		height: 2.5rem;
 	}
 
-	.action-footer {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		min-height: 4rem;
-		z-index: 10;
+	.stage-center-hint {
+		position: absolute;
+		top: 48%;
+		left: 50%;
+		transform: translate(-50%, -50%);
+		z-index: 5;
+		pointer-events: none;
+		text-align: center;
+		user-select: none;
+		animation: hint-fade 0.5s ease-out;
+	}
+
+	@keyframes hint-fade {
+		from {
+			opacity: 0;
+			transform: translate(-50%, calc(-50% + 6px));
+		}
+		to {
+			opacity: 1;
+			transform: translate(-50%, -50%);
+		}
 	}
 
 	.hint {
 		margin: 0;
 		color: var(--accent);
-		font-size: 0.9rem;
-		transition: opacity 0.3s ease;
+		font-size: clamp(1.05rem, 2vw, 1.25rem);
+		letter-spacing: 0.06em;
+		transition: all 0.2s ease;
+		text-shadow: 0 2px 12px rgba(0, 0, 0, 0.85);
 	}
 
 	.hint.quiet {
-		opacity: 0.7;
-		letter-spacing: 0.04em;
+		opacity: 0.8;
 	}
 
 	.hint.active {
 		opacity: 1;
-		font-weight: 500;
+		font-weight: 600;
+		color: #fff8ec;
+		transform: scale(1.06);
+		text-shadow: 0 0 20px rgba(212, 165, 116, 0.7);
+	}
+
+	.stage-center-action {
+		position: absolute;
+		top: 48%;
+		left: 50%;
+		transform: translate(-50%, -50%);
+		z-index: 20;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		width: 100%;
+		max-width: 44rem;
+		padding: 0 1rem;
+		box-sizing: border-box;
+		pointer-events: auto;
+		animation: center-emerge 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+	}
+
+	@keyframes center-emerge {
+		from {
+			opacity: 0;
+			transform: translate(-50%, calc(-50% + 12px)) scale(0.96);
+		}
+		to {
+			opacity: 1;
+			transform: translate(-50%, -50%) scale(1);
+		}
 	}
 
 	.step-btn {
-		margin-top: 0.5rem;
-		padding: 0.5rem 1.2rem;
+		padding: 0.65rem 1.6rem;
 		border-radius: 999px;
-		background: rgba(212, 165, 116, 0.12);
+		background: rgba(18, 14, 10, 0.92);
 		border: 1px solid var(--accent);
 		color: var(--accent);
 		cursor: pointer;
-		font-size: 0.85rem;
+		font-size: 0.95rem;
+		font-weight: 500;
 		letter-spacing: 0.04em;
-		transition: all 0.25s ease;
+		backdrop-filter: blur(12px);
+		-webkit-backdrop-filter: blur(12px);
+		box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6), 0 0 16px rgba(212, 165, 116, 0.3);
+		transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
 	}
 
 	.step-btn:hover {
-		background: var(--accent);
-		color: #0b0a08;
-		box-shadow: 0 0 16px rgba(212, 165, 116, 0.4);
+		transform: translateY(-2px) scale(1.03);
+		background: rgba(212, 165, 116, 0.16);
+		box-shadow: 0 6px 24px rgba(212, 165, 116, 0.5);
 	}
 
 	.collapse-box {
 		animation: box-fade 0.8s ease-out;
 		text-align: center;
-		max-width: 38rem;
+		max-width: 42rem;
 		padding: 0.6rem 1rem;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 0.85rem;
 	}
 
 	@keyframes box-fade {
@@ -572,5 +619,46 @@
 		color: var(--accent);
 		line-height: 1.45;
 		letter-spacing: 0.02em;
+	}
+
+	.verdict-action {
+		margin-top: 0.2rem;
+	}
+
+	.forward-btn {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.4rem;
+		padding: 0.6rem 1.45rem;
+		border-radius: 999px;
+		background: rgba(18, 14, 10, 0.92);
+		border: 1px solid var(--accent);
+		color: var(--accent);
+		text-decoration: none;
+		font-size: 0.95rem;
+		font-weight: 500;
+		letter-spacing: 0.04em;
+		backdrop-filter: blur(12px);
+		-webkit-backdrop-filter: blur(12px);
+		box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6), 0 0 16px rgba(212, 165, 116, 0.3);
+		transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+		animation: btn-fade 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.25s both;
+	}
+
+	.forward-btn:hover {
+		transform: translateY(-2px) scale(1.03);
+		background: rgba(212, 165, 116, 0.16);
+		box-shadow: 0 6px 24px rgba(212, 165, 116, 0.5);
+	}
+
+	@keyframes btn-fade {
+		from {
+			opacity: 0;
+			transform: translateY(8px) scale(0.96);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0) scale(1);
+		}
 	}
 </style>
