@@ -32,15 +32,15 @@
 				<h1 class="title serif">{text.title}</h1>
 				<p class="summary serif">{text.line}</p>
 				<div class="narrative-body serif">
-					<p>
-						{#if data.locale === 'zh'}
-							四百年来，两颗重量悬殊的球同时落地的奇迹被反复传颂。<br />
-							但那座塔上，真的发生过这一切吗？
-						{:else}
-							For four centuries, the simultaneous impact of unequal spheres was retold as truth.<br />
-							Yet upon that leaning tower, did anyone ever see it fall?
-						{/if}
-					</p>
+					{#if data.locale === 'zh'}
+						<p class="legend-premise">亚里士多德曾断言「重物落得更快」，被奉为绝对权威两千年。</p>
+						<p class="legend-act">传说 1590 年，年轻的伽利略登上比萨斜塔，在全城师生面前同时掷下一重一轻两颗球——两球同时落地，颠覆了古希腊信条。</p>
+						<p class="legend-hook">四百年来，这幕科学神话被写进无数教科书。但那座斜塔上，真的发生过这一切吗？</p>
+					{:else}
+						<p class="legend-premise">For two millennia, Aristotle's doctrine went unquestioned: heavier objects fall faster.</p>
+						<p class="legend-act">Legend tells that in 1590, young Galileo climbed the Leaning Tower of Pisa and released unequal spheres before the crowd — striking the ground as one, shattering ancient dogma.</p>
+						<p class="legend-hook">For four centuries, textbooks have repeated this triumph. Yet upon that tower, did anyone ever see it happen?</p>
+					{/if}
 				</div>
 				<div class="gateway">
 					<a class="forward-link serif" href={roomPath(data.locale, 'cracks')}>
@@ -173,6 +173,15 @@
 
 	.narrative-body p {
 		margin: 0;
+	}
+
+	.narrative-body p + p {
+		margin-top: 0.75rem;
+	}
+
+	.legend-hook {
+		color: var(--text);
+		opacity: 0.92;
 	}
 
 	.gateway {

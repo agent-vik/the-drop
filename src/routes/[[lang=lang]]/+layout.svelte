@@ -133,7 +133,14 @@
 	}
 
 	.museum[data-room='cracks'] .atmosphere {
-		background: radial-gradient(ellipse at 50% 48%, #d4a5742e, transparent 46%);
+		background: radial-gradient(
+			ellipse at 50% 48%,
+			color-mix(in srgb, var(--accent) 6%, transparent) 0%,
+			color-mix(in srgb, var(--accent) 3.5%, transparent) 38%,
+			color-mix(in srgb, var(--accent) 1%, transparent) 68%,
+			color-mix(in srgb, var(--accent) 0.2%, transparent) 88%,
+			transparent 100%
+		);
 	}
 
 	.museum[data-room='reasoning'] .atmosphere {

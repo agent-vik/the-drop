@@ -26,7 +26,7 @@
 	// Station 0: Prologue folio
 	// Stations 1..5: The 5 archival documents
 	// Station 6: Verdict folio
-	const prologueMeta = { id: 0, x: 11, y: 44, rot: -0.8, cy: 0.44 };
+	const prologueMeta = { id: 0, x: 11, y: 44, rot: 0, cy: 0.44 };
 
 	const booksMeta = [
 		{ id: 1, kind: 'folio', x: 24, y: 42, rot: -2.2, year: '1654', place: 'Pisa', cy: 0.38 },
@@ -36,7 +36,7 @@
 		{ id: 5, kind: 'print thick', x: 76, y: 54, rot: -1.8, year: '1651', place: 'Bologna', cy: 0.38 }
 	] as const;
 
-	const verdictMeta = { id: 6, x: 89, y: 42, rot: 1.2, cy: 0.44 };
+	const verdictMeta = { id: 6, x: 89, y: 42, rot: 0, cy: 0.44 };
 
 	const allStations = [
 		prologueMeta,
@@ -248,8 +248,6 @@
 				}
 			}}
 		>
-			<div class="lamp-pool" class:lit={true} class:bright={index === 0} aria-hidden="true"></div>
-
 			<div class="desk-folio prologue-folio">
 				<div class="folio-tag mono">
 					<span class="tag-num">02</span>
@@ -261,8 +259,8 @@
 				<h2 class="folio-heading serif">{copy.rooms.cracks.line}</h2>
 				<p class="folio-desc serif">
 					{copy.otherLang === 'en'
-						? '比萨斜塔的传说流传了四百年。但在那个时代的档案里，却找不到任何同时代的目击记录。案台上散落着 5 份历史原件——从维维亚尼晚年的回忆传记，到代尔夫特与博洛尼亚印行出版的真实落体实验。'
-						: 'The legend of the leaning tower has endured for four centuries. Yet in the archives of that era, not a single eyewitness account exists. Scattered across this desk are 5 original records — from Viviani\'s late biography to the printed drops of Delft and Bologna.'}
+						? '比萨斜塔的传说流传了四百年。但在那个时代的档案里，却找不到任何同时代的目击记录。案台上散落着 5 份历史原件——从学生维维亚尼为伽利略撰写的回忆传记，到代尔夫特与博洛尼亚印行出版的真实落体实验。'
+						: 'The legend of the leaning tower has endured for four centuries. Yet in the archives of that era, not a single eyewitness account exists. Scattered across this desk are 5 original records — from Viviani\'s late biography of Galileo to the printed drops of Delft and Bologna.'}
 				</p>
 				<button
 					class="folio-action-btn mono"
@@ -347,8 +345,6 @@
 				}
 			}}
 		>
-			<div class="lamp-pool" class:lit={ready} class:bright={index === 6} aria-hidden="true"></div>
-
 			<div class="desk-folio verdict-folio" class:unlocked={ready}>
 				<div class="folio-seal" aria-hidden="true">
 					<span class="seal-glyph">✦</span>
@@ -356,7 +352,22 @@
 				<div class="folio-tag mono">
 					<span>{copy.otherLang === 'en' ? '历史判词 · 启示' : 'HISTORICAL VERDICT'}</span>
 				</div>
-				<h3 class="folio-heading serif">{copy.heChose}</h3>
+				<div class="verdict-portrait-card">
+					<div class="portrait-frame">
+						<img
+							class="folio-portrait"
+							src="/images/galileo-portrait.webp"
+							alt={copy.otherLang === 'en' ? '伽利略·伽利莱肖像 (苏斯特曼斯 1636)' : 'Portrait of Galileo Galilei (Justus Sustermans, 1636)'}
+							width="86"
+							height="100"
+							loading="lazy"
+						/>
+					</div>
+					<div class="verdict-headline">
+						<h3 class="folio-heading serif">{copy.heChose}</h3>
+						<span class="portrait-credit mono">{copy.otherLang === 'en' ? '伽利略 · 1636' : 'Galileo Galilei · 1636'}</span>
+					</div>
+				</div>
 				<p class="folio-desc serif">
 					{copy.otherLang === 'en'
 						? '没有任何同时代人看到斜塔落体。当经验测量被生理反应与空气阻力遮蔽，他选择用纯粹的思想实验击碎亚里士多德。'
@@ -506,61 +517,72 @@
 		transform: translate(-50%, -50%) rotate(var(--rot, 0deg)) scale(1.01);
 	}
 
-	/* Lamp Pools: Warm amber illumination pools cast onto the table */
+	/* Lamp Pools: A physical warm incandescent desk lamp spotlight resting on the archive table */
 	.lamp-pool {
 		position: absolute;
-		top: 50%;
+		top: 54%;
 		left: 50%;
-		transform: translate(-50%, -50%) scale(0.85);
-		width: 220%;
-		height: 200%;
+		transform: translate(-50%, -50%);
+		width: min(56vw, 42rem);
+		height: min(36vw, 27rem);
 		border-radius: 50%;
-		background: radial-gradient(
-			ellipse at 50% 50%,
-			color-mix(in srgb, var(--accent) 42%, transparent) 0%,
-			color-mix(in srgb, var(--accent) 15%, transparent) 46%,
-			transparent 72%
-		);
 		pointer-events: none;
 		opacity: 0;
-		transition: opacity 1.1s cubic-bezier(0.2, 0.8, 0.3, 1), transform 1.1s cubic-bezier(0.2, 0.8, 0.3, 1);
+		filter: blur(34px);
+		transition: opacity 0.8s cubic-bezier(0.2, 0.8, 0.3, 1), transform 0.8s cubic-bezier(0.2, 0.8, 0.3, 1);
 		z-index: 0;
 	}
 
-	/* Lit once visited, permanently stays lit on the desk */
+	/* Visited items resting in soft archival ambient light */
 	.lamp-pool.lit {
-		opacity: 0.62;
-		transform: translate(-50%, -50%) scale(1);
+		opacity: 0.32;
+		background: radial-gradient(
+			ellipse 65% 55% at 50% 50%,
+			rgba(255, 215, 130, 0.42) 0%,
+			rgba(212, 150, 60, 0.18) 45%,
+			rgba(140, 70, 15, 0.05) 75%,
+			transparent 100%
+		);
+		mix-blend-mode: screen;
+		filter: blur(28px);
 	}
 
-	/* Brightest when currently active */
+	/* Brightest when currently active: luminous incandescent reading lamp beam hitting the table */
 	.lamp-pool.bright {
 		opacity: 1;
-		transform: translate(-50%, -50%) scale(1.18);
+		transform: translate(-50%, -50%) scale(1.04);
 		background: radial-gradient(
-			ellipse at 50% 50%,
-			color-mix(in srgb, var(--accent) 58%, transparent) 0%,
-			color-mix(in srgb, var(--accent) 24%, transparent) 44%,
-			transparent 74%
+			ellipse 66% 56% at 50% 50%,
+			rgba(255, 252, 240, 1) 0%,
+			rgba(255, 230, 160, 0.92) 22%,
+			rgba(242, 172, 70, 0.58) 46%,
+			rgba(180, 100, 25, 0.24) 70%,
+			rgba(90, 40, 10, 0.05) 88%,
+			transparent 100%
 		);
+		mix-blend-mode: screen;
+		filter: blur(34px);
 	}
 
-	/* Physical Desk Folio (Prologue & Verdict) */
+	/* Narrative Information Cards (Prologue & Verdict - non-skeuomorphic UI cards) */
 	.desk-folio {
 		position: relative;
 		width: min(85vw, 24.5rem);
 		padding: 2.2rem 2.2rem 1.9rem;
-		border-radius: 10px;
-		background: linear-gradient(155deg, rgba(30, 24, 19, 0.95), rgba(16, 12, 10, 0.97));
-		border: 1px solid rgba(212, 165, 116, 0.26);
-		box-shadow: 0 20px 48px rgba(0, 0, 0, 0.8), 0 0 30px rgba(212, 165, 116, 0.05);
+		border-radius: 12px;
+		background: rgba(18, 14, 11, 0.88);
+		backdrop-filter: blur(14px);
+		-webkit-backdrop-filter: blur(14px);
+		border: 1px solid rgba(212, 165, 116, 0.22);
+		box-shadow: 0 16px 36px rgba(0, 0, 0, 0.55);
 		text-align: left;
-		transition: border-color 0.4s ease, box-shadow 0.4s ease, filter 0.4s ease, opacity 0.4s ease;
+		transition: border-color 0.4s ease, box-shadow 0.4s ease, opacity 0.4s ease;
 	}
 
 	.folio-station.active .desk-folio {
-		border-color: rgba(212, 165, 116, 0.45);
-		box-shadow: 0 24px 60px rgba(0, 0, 0, 0.85), 0 0 35px rgba(212, 165, 116, 0.12);
+		background: rgba(22, 17, 13, 0.94);
+		border-color: rgba(212, 165, 116, 0.48);
+		box-shadow: 0 20px 48px rgba(0, 0, 0, 0.7);
 	}
 
 	.folio-tag {
@@ -620,19 +642,60 @@
 	/* Verdict Folio Specifics */
 	.verdict-folio {
 		opacity: 0.55;
-		filter: brightness(0.75);
 	}
 
 	.verdict-folio.unlocked {
 		opacity: 0.95;
-		filter: brightness(1);
-		border-color: rgba(212, 165, 116, 0.45);
+		border-color: rgba(212, 165, 116, 0.35);
 	}
 
 	.folio-station.active .verdict-folio.unlocked {
 		opacity: 1;
-		border-color: var(--accent);
-		box-shadow: 0 24px 60px rgba(0, 0, 0, 0.85), 0 0 35px rgba(212, 165, 116, 0.25);
+		border-color: rgba(212, 165, 116, 0.55);
+		box-shadow: 0 20px 48px rgba(0, 0, 0, 0.75);
+	}
+
+	.verdict-portrait-card {
+		display: flex;
+		align-items: center;
+		gap: 1.1rem;
+		margin: 0.6rem 0 0.9rem;
+	}
+
+	.portrait-frame {
+		width: 82px;
+		height: 96px;
+		flex-shrink: 0;
+		border-radius: 6px;
+		overflow: hidden;
+		border: 1px solid rgba(212, 165, 116, 0.38);
+		box-shadow: 0 6px 18px rgba(0, 0, 0, 0.7), inset 0 0 10px rgba(0, 0, 0, 0.5);
+		background: #110d0a;
+	}
+
+	.folio-portrait {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+		display: block;
+		filter: contrast(1.04) sepia(0.06);
+	}
+
+	.verdict-headline {
+		flex: 1;
+		min-width: 0;
+	}
+
+	.verdict-headline .folio-heading {
+		margin: 0 0 0.3rem;
+	}
+
+	.portrait-credit {
+		display: inline-block;
+		font-size: 0.7rem;
+		letter-spacing: 0.08em;
+		color: var(--accent);
+		opacity: 0.75;
 	}
 
 	.folio-seal {
@@ -718,15 +781,31 @@
 		height: min(28vw, 19.5rem);
 	}
 
-	/* Dim state for unvisited items in shadow */
-	.item:not(.seen) .plate {
-		opacity: 0.38;
-		filter: brightness(0.68) drop-shadow(0 0.5rem 1rem #0006);
+	/* Active item: illuminated directly under the reading lamp */
+	/* Active item: grounded on the desk directly under the reading lamp */
+	.item.book-item.active .plate-wrap {
+		position: relative;
+		z-index: 2;
 	}
 
-	.item:not(.seen):hover .plate {
-		opacity: 0.58;
-		filter: brightness(0.82) drop-shadow(0 0.8rem 1.4rem #0007);
+	.item.book-item.active .plate {
+		opacity: 1;
+		/* Keep authentic antique tones, no artificial bleaching/overexposure */
+		filter: brightness(1.02) contrast(1.02)
+			drop-shadow(0 14px 3px rgba(0, 0, 0, 0.95));
+	}
+
+	/* Inactive items: resting quietly in archival ambient shadow */
+	.item:not(.active):not(:hover) .plate {
+		opacity: 0.36;
+		filter: brightness(0.65) contrast(0.96)
+			drop-shadow(0 10px 2px rgba(0, 0, 0, 0.88));
+	}
+
+	.item:not(.active):hover .plate {
+		opacity: 0.7;
+		filter: brightness(0.88)
+			drop-shadow(0 12px 3px rgba(0, 0, 0, 0.92));
 	}
 
 	/* Game-style subtle focus reticle for unvisited items */
@@ -929,6 +1008,13 @@
 		}
 		.desk-folio {
 			padding: 1.6rem 1.4rem;
+		}
+		.portrait-frame {
+			width: 68px;
+			height: 80px;
+		}
+		.verdict-portrait-card {
+			gap: 0.8rem;
 		}
 	}
 </style>
