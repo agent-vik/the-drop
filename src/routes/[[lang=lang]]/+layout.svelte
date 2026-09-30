@@ -52,7 +52,7 @@
 	>
 		<source src="/video/apollo15-hammer-feather.mp4" type="video/mp4" />
 	</video>
-	<main class="stage" class:watch={room.id === 'vacuum'} class:at-tower={room.id === 'legend' || room.id === 'echo'}>
+	<main class="stage" class:watch={room.id === 'vacuum'} class:at-tower={room.id === 'legend'}>
 		{@render children()}
 	</main>
 </div>
