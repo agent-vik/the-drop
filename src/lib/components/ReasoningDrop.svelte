@@ -126,6 +126,9 @@
 					<div class="ball heavy">
 						{#if phase === 'idle'}<span class="reticle" aria-hidden="true"></span>{/if}
 					</div>
+					{#if p[0] >= 1}
+						<div class="col-ripple" aria-hidden="true"></div>
+					{/if}
 				</div>
 				<!-- Track 2: Light -->
 				<div class="col" style:--p={p[1]}>
@@ -134,6 +137,9 @@
 					<div class="ball light">
 						{#if phase === 'idle'}<span class="reticle" aria-hidden="true"></span>{/if}
 					</div>
+					{#if p[1] >= 1}
+						<div class="col-ripple" aria-hidden="true"></div>
+					{/if}
 				</div>
 			{:else if scene === 1}
 				<!-- Track 1: Heavy alone -->
@@ -143,6 +149,9 @@
 					<div class="ball heavy">
 						{#if phase === 'idle'}<span class="reticle" aria-hidden="true"></span>{/if}
 					</div>
+					{#if p[0] >= 1}
+						<div class="col-ripple" aria-hidden="true"></div>
+					{/if}
 				</div>
 				<!-- Track 2: Tied pair (m drags M) -->
 				<div class="col combo" style:--p={p[1]}>
@@ -168,6 +177,9 @@
 					<div class="ball heavy">
 						{#if phase === 'idle'}<span class="reticle" aria-hidden="true"></span>{/if}
 					</div>
+					{#if p[1] >= 1}
+						<div class="col-ripple" aria-hidden="true"></div>
+					{/if}
 				</div>
 				<!-- Track 3: Light alone -->
 				<div class="col" style:--p={p[2]}>
@@ -176,6 +188,9 @@
 					<div class="ball light">
 						{#if phase === 'idle'}<span class="reticle" aria-hidden="true"></span>{/if}
 					</div>
+					{#if p[2] >= 1}
+						<div class="col-ripple" aria-hidden="true"></div>
+					{/if}
 				</div>
 			{:else}
 				<!-- Scene 2: Reductio ad absurdum -->
@@ -199,6 +214,9 @@
 					<div class="ball heavy">
 						{#if phase === 'idle'}<span class="reticle" aria-hidden="true"></span>{/if}
 					</div>
+					{#if p[0] >= 1}
+						<div class="col-ripple" aria-hidden="true"></div>
+					{/if}
 				</div>
 				<!-- Track 2: Heavy alone -->
 				<div class="col" style:--p={p[1]}>
@@ -207,6 +225,9 @@
 					<div class="ball heavy">
 						{#if phase === 'idle'}<span class="reticle" aria-hidden="true"></span>{/if}
 					</div>
+					{#if p[1] >= 1}
+						<div class="col-ripple" aria-hidden="true"></div>
+					{/if}
 				</div>
 				<!-- Track 3: Light alone -->
 				<div class="col" style:--p={p[2]}>
@@ -215,6 +236,9 @@
 					<div class="ball light">
 						{#if phase === 'idle'}<span class="reticle" aria-hidden="true"></span>{/if}
 					</div>
+					{#if p[2] >= 1}
+						<div class="col-ripple" aria-hidden="true"></div>
+					{/if}
 				</div>
 			{/if}
 		</div>
@@ -457,6 +481,62 @@
 		height: 2px;
 		background: color-mix(in srgb, var(--accent) 35%, #2a241c);
 		box-shadow: 0 0 8px rgba(212, 165, 116, 0.2);
+	}
+
+	.col-ripple {
+		position: absolute;
+		left: 50%;
+		bottom: -0.1rem;
+		width: 4.2rem;
+		height: 1.2rem;
+		transform: translateX(-50%);
+		border-radius: 50%;
+		border: 1.6px solid var(--accent);
+		box-shadow:
+			0 0 16px color-mix(in srgb, var(--accent) 70%, transparent),
+			inset 0 0 8px color-mix(in srgb, var(--accent) 35%, transparent);
+		pointer-events: none;
+		animation: col-ripple-spread 0.68s cubic-bezier(0.12, 0.8, 0.2, 1) forwards;
+		z-index: 1;
+	}
+
+	.col-ripple::after {
+		content: '';
+		position: absolute;
+		inset: -0.15rem;
+		border-radius: 50%;
+		border: 1px solid color-mix(in srgb, var(--accent) 85%, white);
+		box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 55%, transparent);
+		animation: col-ripple-echo 0.78s cubic-bezier(0.08, 0.75, 0.22, 1) 0.1s forwards;
+		opacity: 0;
+	}
+
+	@keyframes col-ripple-spread {
+		0% {
+			transform: translateX(-50%) scale(0.2);
+			opacity: 1;
+		}
+		50% {
+			opacity: 0.7;
+		}
+		100% {
+			transform: translateX(-50%) scale(1.75);
+			opacity: 0;
+		}
+	}
+
+	@keyframes col-ripple-echo {
+		0% {
+			transform: scale(0.25);
+			opacity: 0.85;
+		}
+		55% {
+			opacity: 0.5;
+		}
+		100% {
+			transform: scale(2.2);
+			opacity: 0;
+		}
 	}
 
 	.arrow {

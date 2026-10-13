@@ -18,10 +18,15 @@
 	let trials = $state<TrialEntry[]>([]);
 	let nextId = 1;
 	let lastMissed = $state(false);
+	let justStopped = $state(false);
+	let stopFlashTimer: any = null;
 
 	const text = $derived(data.copy.rooms.echo);
 	const TARGET_TIME = 0.56;
 	const AXIS_MAX = 1.0;
+
+	// True only while the stopwatch is actively running and waiting for a user stop-tap
+	const isTiming = $derived(phase === 'falling' && stoppedAt === null);
 
 	// Always 3 display slots for ledger chips
 	const displaySlots = $derived.by(() => {
@@ -40,17 +45,21 @@
 	});
 
 	function handleAction() {
-		if (phase === 'idle') {
-			lastMissed = false;
-			towerRef?.triggerDrop();
-		} else if (phase === 'falling') {
+		if (isTiming) {
 			towerRef?.triggerStop();
-		} else if (phase === 'landed') {
-			towerRef?.triggerReset();
-			requestAnimationFrame(() => {
-				towerRef?.triggerDrop();
-			});
+		} else {
+			lastMissed = false;
+			if (phase !== 'idle') {
+				towerRef?.triggerReset();
+			}
+			towerRef?.triggerDrop();
 		}
+	}
+
+	function handlePromptPointerDown(e: PointerEvent) {
+		e.stopPropagation();
+		e.preventDefault();
+		handleAction();
 	}
 
 	function handleStagePointerDown(e: PointerEvent) {
@@ -59,26 +68,23 @@
 			target?.closest('.forward-btn') ||
 			target?.closest('.reset-btn') ||
 			target?.closest('.retry-link') ||
+			target?.closest('.prompt-strip') ||
 			target?.closest('a')
 		) {
 			return;
 		}
-		if (phase === 'falling') {
+		if (isTiming) {
 			e.stopPropagation();
 			towerRef?.triggerStop();
-		} else if (phase === 'landed') {
-			e.stopPropagation();
-			towerRef?.triggerReset();
-			requestAnimationFrame(() => {
-				towerRef?.triggerDrop();
-			});
 		}
 	}
 
 	function resetAll() {
+		clearTimeout(stopFlashTimer);
 		trials = [];
 		nextId = 1;
 		lastMissed = false;
+		justStopped = false;
 		towerRef?.triggerReset();
 	}
 
@@ -86,6 +92,11 @@
 		if (seconds !== null) {
 			trials = [...trials, { id: nextId++, time: seconds }];
 			lastMissed = false;
+			clearTimeout(stopFlashTimer);
+			justStopped = true;
+			stopFlashTimer = setTimeout(() => {
+				justStopped = false;
+			}, 260);
 		} else {
 			lastMissed = true;
 		}
@@ -115,7 +126,20 @@
 
 <svelte:window onkeydown={handleKeydown} />
 
-<div class="echo-room" class:falling={phase === 'falling'} role="presentation" onpointerdown={handleStagePointerDown}>
+<div
+	class="echo-room"
+	class:timing={isTiming}
+	role="presentation"
+	onpointerdown={handleStagePointerDown}
+>
+	<!-- Full-screen Ambient Edge Glow during active drop timing -->
+	<div
+		class="ambient-edge-glow"
+		class:active={isTiming}
+		class:flash={justStopped}
+		aria-hidden="true"
+	></div>
+
 	<!-- Apparatus Container: Tower + Mounted Side Rig -->
 	<div class="apparatus-stage">
 		<TowerDrop
@@ -123,6 +147,7 @@
 			balls={1}
 			showStopwatch
 			hideFloatingWatch
+			instantDrop={true}
 			enableKeydown={false}
 			duration={TARGET_TIME}
 			autoReset={true}
@@ -173,11 +198,35 @@
 					<!-- Status & Guidance Prompt -->
 					<button
 						class="prompt-strip mono"
-						class:falling={phase === 'falling'}
-						class:landed={phase === 'landed'}
-						onclick={handleAction}
+						class:falling={isTiming}
+						class:landed={phase === 'landed' || stoppedAt !== null}
+						onpointerdown={handlePromptPointerDown}
 					>
-						{#if phase === 'idle'}
+						{#if isTiming}
+							<span class="prompt-text active-fall">
+								⏱ {clock.toFixed(2)}s · {data.locale === 'zh' ? '触地拍停！[轻按屏幕任意处]' : 'Impact Stop! [Tap anywhere]'}
+							</span>
+						{:else if phase === 'falling' && stoppedAt !== null}
+							<span class="prompt-text">
+								⏱ {stoppedAt.toFixed(2)}s ({calcOffsetMs(stoppedAt)}) · {data.locale === 'zh' ? '已记录，点球继续' : 'Recorded · Drop again'}
+							</span>
+						{:else if phase === 'landed'}
+							<span class="prompt-text">
+								{#if stoppedAt !== null}
+									⏱ {stoppedAt.toFixed(2)}s ({calcOffsetMs(stoppedAt)}) · {trials.length < 3
+										? data.locale === 'zh'
+											? '点球再次测定'
+											: 'Drop again'
+										: data.locale === 'zh'
+											? '点球继续测定 · 或前往斜面工坊 →'
+											: 'Drop again or proceed →'}
+								{:else}
+									<span class="teach-miss">
+										{data.locale === 'zh' ? '太快了？小球撞地瞬间，随手拍按屏幕任意处即可！' : 'Too fast? When sphere hits ground, tap anywhere!'}
+									</span>
+								{/if}
+							</span>
+						{:else}
 							{#if lastMissed}
 								<span class="prompt-text teach-miss">
 									{data.locale === 'zh'
@@ -204,26 +253,6 @@
 									<span class="step-txt">{data.locale === 'zh' ? '触地拍屏' : 'Tap anywhere to stop'}</span>
 								</span>
 							{/if}
-						{:else if phase === 'falling'}
-							<span class="prompt-text active-fall">
-								⏱ {clock.toFixed(2)}s · {data.locale === 'zh' ? '触地拍停！[轻按屏幕任意处]' : 'Impact Stop! [Tap anywhere]'}
-							</span>
-						{:else if phase === 'landed'}
-							<span class="prompt-text">
-								{#if stoppedAt !== null}
-									⏱ {stoppedAt.toFixed(2)}s · {trials.length < 3
-										? data.locale === 'zh'
-											? '点球再次测定'
-											: 'Drop again'
-										: data.locale === 'zh'
-											? '点球可继续测定 · 或前往斜面工坊 →'
-											: 'Drop again or proceed →'}
-								{:else}
-									<span class="teach-miss">
-										{data.locale === 'zh' ? '太快了？小球撞地瞬间，随手拍按屏幕任意处即可！' : 'Too fast? When sphere hits ground, tap anywhere!'}
-									</span>
-								{/if}
-							</span>
 						{/if}
 					</button>
 
@@ -253,6 +282,7 @@
 								{@const isEarly = entry.time < TARGET_TIME - 0.04}
 								<div
 									class="trial-dot mono"
+									class:multi-digit={entry.id >= 10}
 									class:history={!isRecent}
 									class:recent={isRecent}
 									class:late={isLate}
@@ -284,7 +314,7 @@
 											class:late={entry.time > TARGET_TIME + 0.04}
 											class:early={entry.time < TARGET_TIME - 0.04}
 										>
-											({calcOffsetMs(entry.time)})
+											{calcOffsetMs(entry.time)}
 										</span>
 									{:else}
 										<span class="chip-empty">—</span>
@@ -337,27 +367,54 @@
 		box-sizing: border-box;
 	}
 
-	.echo-room.falling {
-		cursor: crosshair;
+	/* Custom SVG Stopwatch Cursor across entire viewport during active drop timing */
+	.echo-room.timing,
+	.echo-room.timing :global(*) {
+		cursor:
+			url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='18' r='11.5' fill='rgba(16,12,8,0.92)' stroke='%23120e0a' stroke-width='2.5'/%3E%3Cpath d='M13 3h6M16 3v3' stroke='%23120e0a' stroke-width='3.5' stroke-linecap='round'/%3E%3Cpath d='M13 3h6M16 3v3' stroke='%23f7d49e' stroke-width='1.8' stroke-linecap='round'/%3E%3Cpath d='M23.5 8.5l2-2' stroke='%23120e0a' stroke-width='3.2' stroke-linecap='round'/%3E%3Cpath d='M23.5 8.5l2-2' stroke='%23f7d49e' stroke-width='1.6' stroke-linecap='round'/%3E%3Ccircle cx='16' cy='18' r='10.5' fill='rgba(18,14,10,0.9)' stroke='%23f7d49e' stroke-width='1.8'/%3E%3Cpath d='M16 9.5v2M16 24.5v2M7.5 18h2M22.5 18h2' stroke='rgba(247,212,158,0.65)' stroke-width='1.3' stroke-linecap='round'/%3E%3Cpath d='M16 18l4.5-4.5' stroke='%23ff9e64' stroke-width='1.8' stroke-linecap='round'/%3E%3Ccircle cx='16' cy='18' r='1.8' fill='%23f7d49e'/%3E%3C/svg%3E")
+				16 18,
+			crosshair !important;
 	}
 
-	.echo-room.falling::after {
-		content: '';
-		position: absolute;
+	/* Full-screen Ambient Edge Diffused Glow (No hard border) */
+	.ambient-edge-glow {
+		position: fixed;
 		inset: 0;
 		pointer-events: none;
-		border: 2px solid rgba(247, 212, 158, 0.45);
-		box-shadow: inset 0 0 32px rgba(247, 212, 158, 0.12), inset 0 0 80px rgba(212, 165, 116, 0.08);
-		animation: shutter-pulse 0.35s infinite alternate ease-in-out;
-		z-index: 99;
+		z-index: 80;
+		opacity: 0;
+		transition: opacity 0.25s ease-out;
+		box-shadow:
+			inset 0 0 42px 8px rgba(247, 212, 158, 0.28),
+			inset 0 0 105px 24px rgba(212, 165, 116, 0.18),
+			inset 0 0 210px 50px rgba(212, 165, 116, 0.08);
+		background: radial-gradient(
+			circle at 50% 50%,
+			transparent 55%,
+			rgba(212, 165, 116, 0.05) 78%,
+			rgba(247, 212, 158, 0.18) 100%
+		);
 	}
 
-	@keyframes shutter-pulse {
+	.ambient-edge-glow.active {
+		opacity: 1;
+		animation: edge-breathe 1.4s infinite alternate ease-in-out;
+	}
+
+	.ambient-edge-glow.flash {
+		opacity: 1;
+		box-shadow:
+			inset 0 0 60px 14px rgba(247, 212, 158, 0.45),
+			inset 0 0 140px 32px rgba(212, 165, 116, 0.25);
+		transition: opacity 0.4s ease-out;
+	}
+
+	@keyframes edge-breathe {
 		from {
 			opacity: 0.55;
 		}
 		to {
-			opacity: 1;
+			opacity: 0.95;
 		}
 	}
 
@@ -431,11 +488,11 @@
 
 	/* Rig Console */
 	.rig-console {
-		width: min(85vw, 24rem);
+		width: min(88vw, 24.8rem);
 		background: rgba(16, 12, 8, 0.94);
 		border: 1px solid rgba(212, 165, 116, 0.35);
 		border-radius: 8px;
-		padding: 0.9rem 1.15rem;
+		padding: 0.9rem 1.1rem;
 		backdrop-filter: blur(14px);
 		-webkit-backdrop-filter: blur(14px);
 		box-shadow: 0 12px 40px rgba(0, 0, 0, 0.75), 0 0 16px rgba(212, 165, 116, 0.15);
@@ -524,14 +581,20 @@
 	.prompt-strip {
 		display: flex;
 		align-items: center;
-		justify-content: space-between;
-		padding: 0.4rem 0.7rem;
+		justify-content: center;
+		padding: 0.42rem 0.7rem;
 		border-radius: 4px;
 		background: rgba(0, 0, 0, 0.35);
-		border: 1px solid rgba(212, 165, 116, 0.2);
-		font-size: 0.8rem;
+		border: 1px solid rgba(212, 165, 116, 0.24);
+		font-size: 0.78rem;
 		color: var(--text-dim);
+		cursor: pointer;
 		transition: all 0.2s ease;
+	}
+
+	.prompt-strip:hover {
+		border-color: rgba(212, 165, 116, 0.45);
+		background: rgba(212, 165, 116, 0.08);
 	}
 
 	.prompt-strip.falling {
@@ -674,17 +737,27 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		width: 15px;
-		height: 15px;
-		border-radius: 50%;
+		min-width: 16px;
+		height: 16px;
+		padding: 0 3px;
+		box-sizing: border-box;
+		border-radius: 999px;
 		background: #f7d49e;
 		color: #120e0a;
 		font-size: 0.58rem;
 		font-weight: 700;
+		line-height: 1;
 		border: 1px solid #fff;
 		box-shadow: 0 0 10px rgba(247, 212, 158, 0.9);
 		z-index: 4;
 		animation: dot-in 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+	}
+
+	.trial-dot.multi-digit {
+		min-width: 19px;
+		padding: 0 3.5px;
+		font-size: 0.5rem;
+		letter-spacing: -0.04em;
 	}
 
 	@keyframes dot-in {
@@ -748,25 +821,30 @@
 		left: 50%;
 	}
 
-	/* Ledger Chips */
+	/* Ledger Chips: 3-column fixed grid immune to multi-digit overflow */
 	.ledger-chips {
-		display: flex;
-		justify-content: space-between;
-		gap: 0.4rem;
+		display: grid;
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+		gap: 0.35rem;
+		width: 100%;
 	}
 
 	.ledger-chip {
-		flex: 1;
+		min-width: 0;
 		display: flex;
-		align-items: center;
+		align-items: baseline;
 		justify-content: center;
-		gap: 0.25rem;
-		padding: 0.25rem 0.35rem;
+		gap: 0.2rem;
+		padding: 0.28rem 0.25rem;
 		border-radius: 4px;
 		background: rgba(0, 0, 0, 0.35);
 		border: 1px dashed rgba(212, 165, 116, 0.18);
-		font-size: 0.72rem;
+		font-size: 0.7rem;
 		color: var(--text-dim);
+		white-space: nowrap;
+		overflow: hidden;
+		font-variant-numeric: tabular-nums;
+		box-sizing: border-box;
 	}
 
 	.ledger-chip.filled {
@@ -777,18 +855,25 @@
 	}
 
 	.chip-idx {
-		font-size: 0.64rem;
-		opacity: 0.6;
+		font-size: 0.6rem;
+		opacity: 0.65;
+		letter-spacing: -0.02em;
+		flex-shrink: 0;
 	}
 
 	.chip-val {
 		color: var(--accent);
+		font-size: 0.7rem;
 		font-weight: 600;
+		letter-spacing: -0.01em;
+		flex-shrink: 0;
 	}
 
 	.chip-diff {
-		font-size: 0.64rem;
+		font-size: 0.6rem;
 		color: var(--accent);
+		letter-spacing: -0.02em;
+		flex-shrink: 0;
 	}
 
 	.chip-diff.late {
@@ -890,7 +975,7 @@
 		}
 
 		.apparatus-stage {
-			height: 52%;
+			height: 46%;
 			bottom: 0;
 			position: absolute;
 			transform: none;
@@ -898,7 +983,7 @@
 
 		.balcony-rig {
 			position: fixed;
-			top: 3.8rem;
+			top: 3.1rem;
 			left: 50%;
 			transform: translateX(-50%);
 			width: min(92vw, 24rem);
@@ -911,8 +996,14 @@
 
 		.rig-console {
 			width: 100%;
-			padding: 0.75rem 0.9rem;
-			gap: 0.5rem;
+			padding: 0.62rem 0.85rem;
+			gap: 0.4rem;
+		}
+
+		.revelation-card {
+			margin-top: 0.15rem;
+			padding-top: 0.45rem;
+			gap: 0.32rem;
 		}
 	}
 </style>

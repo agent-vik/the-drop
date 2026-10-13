@@ -8,6 +8,7 @@
 		autoReset = false,
 		showStopwatch = false,
 		hideFloatingWatch = false,
+		instantDrop = false,
 		releaseHint = '',
 		retryLabel = '',
 		stopHint = '',
@@ -26,6 +27,7 @@
 		autoReset?: boolean;
 		showStopwatch?: boolean;
 		hideFloatingWatch?: boolean;
+		instantDrop?: boolean;
 		releaseHint?: string;
 		retryLabel?: string;
 		stopHint?: string;
@@ -68,7 +70,12 @@
 
 	export function triggerDrop() {
 		if (phase === 'idle') {
+			clearTimeout(resetTimer);
+			cancelAnimationFrame(frame);
 			phase = 'falling';
+			progress = 0;
+			clock = 0;
+			stoppedAt = null;
 			start = performance.now();
 			groove = false;
 			landedTriggered = false;
@@ -90,13 +97,27 @@
 	function handleHitPointerDown(event?: PointerEvent) {
 		if (phase === 'falling' && showStopwatch) {
 			event?.stopPropagation();
-			stopClock();
+			if (stoppedAt === null) {
+				stopClock();
+			} else if (instantDrop) {
+				resetBalls();
+				triggerDrop();
+			}
 			return;
 		}
 		if (phase === 'landed') {
 			event?.stopPropagation();
 			resetBalls();
-			hold(event);
+			if (instantDrop) {
+				triggerDrop();
+			} else {
+				hold(event);
+			}
+			return;
+		}
+		if (instantDrop) {
+			event?.stopPropagation();
+			triggerDrop();
 			return;
 		}
 		hold(event);
@@ -108,13 +129,9 @@
 		if (target?.closest('.rig-console') || target?.closest('.balcony-rig')) {
 			return;
 		}
-		if (phase === 'falling') {
+		if (phase === 'falling' && stoppedAt === null) {
 			event.stopPropagation();
 			stopClock();
-		} else if (phase === 'landed') {
-			event.stopPropagation();
-			resetBalls();
-			hold(event);
 		}
 	}
 
@@ -150,7 +167,9 @@
 
 	function stopClock() {
 		if (!showStopwatch || stoppedAt !== null || start === 0) return;
-		stoppedAt = (performance.now() - start) / 1000;
+		const elapsed = (performance.now() - start) / 1000;
+		if (elapsed < 0.04) return;
+		stoppedAt = elapsed;
 		onTimed?.(Number(stoppedAt.toFixed(2)));
 		if (progress >= 1) {
 			phase = 'landed';
@@ -163,7 +182,11 @@
 		if (e.key === ' ' || e.key === 'Enter') {
 			if (phase === 'idle') {
 				e.preventDefault();
-				hold();
+				if (instantDrop) {
+					triggerDrop();
+				} else {
+					hold();
+				}
 			} else if (phase === 'holding') {
 				e.preventDefault();
 				release();
@@ -173,7 +196,11 @@
 			} else if (phase === 'landed') {
 				e.preventDefault();
 				resetBalls();
-				hold();
+				if (instantDrop) {
+					triggerDrop();
+				} else {
+					hold();
+				}
 			}
 		}
 	}
@@ -220,7 +247,7 @@
 					return;
 				}
 			} else {
-				const maxWatchTime = Math.max(duration + 1.2, 1.6);
+				const maxWatchTime = Math.max(duration + 1.1, 1.5);
 				if (elapsed >= maxWatchTime) {
 					phase = 'landed';
 					stoppedAt = null;
@@ -255,6 +282,7 @@
 	{/if}
 	<div
 		class="hit"
+		class:instant={instantDrop}
 		role="button"
 		tabindex="0"
 		aria-label={releaseHint}
@@ -271,7 +299,7 @@
 			{rhythmHint}
 		</div>
 	{/if}
-	{#if phase === 'falling' && showStopwatch}
+	{#if phase === 'falling' && showStopwatch && stoppedAt === null}
 		<div class="drop-stop-beacon" aria-hidden="true"></div>
 	{/if}
 	{#if phase !== 'faded'}
@@ -352,6 +380,10 @@
 		cursor: grab;
 		touch-action: none;
 		z-index: 30;
+	}
+
+	.hit.instant {
+		cursor: pointer;
 	}
 
 	.holding .hit {
@@ -638,24 +670,54 @@
 		position: absolute;
 		left: 80.8%;
 		bottom: 3.2%;
-		width: 4.8rem;
-		height: 1.5rem;
+		width: 5.6rem;
+		height: 1.8rem;
 		transform: translateX(-50%);
 		border-radius: 50%;
-		border: 1.5px solid var(--accent);
-		box-shadow: 0 0 16px color-mix(in srgb, var(--accent) 70%, transparent);
+		border: 1.8px solid var(--accent);
+		box-shadow:
+			0 0 20px color-mix(in srgb, var(--accent) 75%, transparent),
+			inset 0 0 10px color-mix(in srgb, var(--accent) 40%, transparent);
 		pointer-events: none;
-		animation: impact-ring 0.65s cubic-bezier(0.1, 0.8, 0.25, 1) forwards;
+		animation: impact-ring 0.72s cubic-bezier(0.12, 0.8, 0.2, 1) forwards;
 		z-index: 1;
+	}
+
+	.impact-ripple::after {
+		content: '';
+		position: absolute;
+		inset: -0.2rem;
+		border-radius: 50%;
+		border: 1.2px solid color-mix(in srgb, var(--accent) 85%, white);
+		box-shadow: 0 0 14px color-mix(in srgb, var(--accent) 60%, transparent);
+		animation: impact-ring-echo 0.85s cubic-bezier(0.08, 0.75, 0.22, 1) 0.12s forwards;
+		opacity: 0;
 	}
 
 	@keyframes impact-ring {
 		0% {
-			transform: translateX(-50%) scale(0.3);
-			opacity: 0.95;
+			transform: translateX(-50%) scale(0.2);
+			opacity: 1;
+		}
+		50% {
+			opacity: 0.75;
 		}
 		100% {
-			transform: translateX(-50%) scale(1.6);
+			transform: translateX(-50%) scale(1.85);
+			opacity: 0;
+		}
+	}
+
+	@keyframes impact-ring-echo {
+		0% {
+			transform: scale(0.3);
+			opacity: 0.9;
+		}
+		60% {
+			opacity: 0.55;
+		}
+		100% {
+			transform: scale(2.3);
 			opacity: 0;
 		}
 	}
