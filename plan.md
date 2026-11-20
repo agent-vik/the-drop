@@ -96,7 +96,7 @@
 | 影像 | NASA 原始 MP4 自托管（静态资源或 R2），不嵌 YouTube |
 | SEO | Schema.org、Open Graph、Twitter Card、canonical、hreflang |
 | 托管 | Cloudflare Pages 目标域名 `thedrop.victor42.work`（绑定未做）。本地与构建用 `adapter-static` 出 `build/`，不依赖 Wrangler |
-| 垂直落体 | `src/lib/physics.ts`：`TOWER_FALL_SECONDS = 1.45`；\(s=\tfrac12 at^2\) |
+| 垂直落体 | `src/lib/physics.ts`：`TOWER_FALL_SECONDS = 0.85`；\(s=\tfrac12 at^2\) |
 
 明确不做：整馆 Canvas/WebGL、物理引擎、无 URL 的单页、进馆整页刷新。
 
